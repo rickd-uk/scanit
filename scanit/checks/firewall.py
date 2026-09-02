@@ -20,7 +20,7 @@ class FirewallServiceCheck:
             state = result.stdout.strip() or f"exit {result.returncode}"
             if result.returncode == 0 and state == "active":
                 active.append(f"{service}: active")
-            elif result.returncode in (1, 3, 4):
+            elif result.returncode in (3, 4) and state in ("inactive", "failed", "unknown", "not-found"):
                 known.append(f"{service}: {state}")
             else:
                 unknown.append(f"{service}: {state}")

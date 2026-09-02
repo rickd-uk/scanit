@@ -37,6 +37,10 @@ class FirewallServiceTests(unittest.TestCase):
         finding = self.run_check({service: CommandResult(127, "systemctl unavailable") for service in FirewallServiceCheck.services})
         self.assertIs(finding.status, Status.UNKNOWN)
 
+    def test_system_bus_permission_failure_is_unknown(self):
+        finding = self.run_check({service: CommandResult(1, "Failed to connect to system scope bus") for service in FirewallServiceCheck.services})
+        self.assertIs(finding.status, Status.UNKNOWN)
+
 
 if __name__ == "__main__":
     unittest.main()
