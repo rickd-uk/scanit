@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .checks.base import Check
+from .checks.boot import SecureBootCheck
 from .checks.browser_permissions import BrowserProfilePermissionsCheck
 from .checks.browser_extensions import BrowserExtensionPermissionsCheck
 from .checks.browser_processes import BrowserProcessFlagsCheck
@@ -30,6 +31,7 @@ def builtin_checks() -> list[Check]:
         WildcardListenersCheck(),
         SshAuthenticationCheck(),
         RootFilesystemEncryptionCheck(),
+        SecureBootCheck(),
         SudoersPermissionsCheck(),
         SudoersDropInPermissionsCheck(),
     ]
