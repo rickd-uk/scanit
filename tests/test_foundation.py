@@ -7,7 +7,7 @@ from pathlib import Path
 
 from scanit.context import ScanContext
 from scanit.models import Confidence, Finding, Severity, Status
-from scanit.reporters import render_json
+from scanit.reporters import render_json, render_sarif
 from scanit.runner import run_checks
 from scanit.checks.filesystem import SudoersDropInPermissionsCheck, SudoersPermissionsCheck, unsafe_privileged_metadata
 
@@ -48,6 +48,13 @@ class FoundationTests(unittest.TestCase):
         payload = json.loads(render_json(report))
         self.assertEqual(payload["schema_version"], 1)
         self.assertEqual(payload["findings"][0]["check_id"], "test.failure")
+
+    def test_sarif_contains_failed_findings(self):
+        report = run_checks([FailingCheck()], self.context, "test")
+        payload = json.loads(render_sarif(report))
+        self.assertEqual(payload["version"], "2.1.0")
+        self.assertEqual(payload["runs"][0]["results"][0]["ruleId"], "test.failure")
+        self.assertEqual(payload["runs"][0]["results"][0]["level"], "error")
 
     def test_registry_contains_filesystem_check(self):
         self.assertEqual(SudoersPermissionsCheck().check_id, "system.filesystem.sudoers-permissions")

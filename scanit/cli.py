@@ -9,13 +9,15 @@ from . import __version__
 from .context import ScanContext
 from .models import ScanReport, Severity, Status
 from .registry import builtin_checks
-from .reporters import render_json, render_text
+from .reporters import render_json, render_sarif, render_text
 from .runner import run_checks
 
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="Audit an Arch Linux workstation's security posture.")
-    result.add_argument("--json", action="store_true", help="emit versioned JSON")
+    output = result.add_mutually_exclusive_group()
+    output.add_argument("--json", action="store_true", help="emit versioned JSON")
+    output.add_argument("--sarif", action="store_true", help="emit SARIF 2.1.0 for CI systems")
     result.add_argument("--area", action="append", help="run checks in this area (repeatable)")
     result.add_argument("--check", action="append", help="run this stable check ID (repeatable)")
     result.add_argument("--list-checks", action="store_true", help="list stable check IDs and exit")
@@ -62,5 +64,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"{check.check_id}\t{check.area}")
         return 0
     report = run_checks(checks, ScanContext.local(), __version__)
-    print(render_json(report) if args.json else render_text(report))
+    if args.json:
+        rendered = render_json(report)
+    elif args.sarif:
+        rendered = render_sarif(report)
+    else:
+        rendered = render_text(report)
+    print(rendered)
     return 1 if report_fails_at(report, args.fail_on) else 0
