@@ -6,12 +6,14 @@ from .checks.base import Check
 from .checks.browser_permissions import BrowserProfilePermissionsCheck
 from .checks.filesystem import SudoersDropInPermissionsCheck, SudoersPermissionsCheck
 from .checks.packages import PendingPackageUpdatesCheck
+from .checks.package_trust import PacmanSignaturePolicyCheck
 
 
 def builtin_checks() -> list[Check]:
     return [
         BrowserProfilePermissionsCheck(),
         PendingPackageUpdatesCheck(),
+        PacmanSignaturePolicyCheck(),
         SudoersPermissionsCheck(),
         SudoersDropInPermissionsCheck(),
     ]
