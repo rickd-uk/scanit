@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scanit.checks.ssh_keys import SshAuthorizationPathPermissionsCheck, SshPrivateKeyPermissionsCheck
+from scanit.checks.ssh_keys import SshAuthorizationPathPermissionsCheck, SshHostKeyPermissionsCheck, SshPrivateKeyPermissionsCheck
 from scanit.context import ScanContext
 from scanit.models import Status
 
@@ -75,4 +75,35 @@ class SshAuthorizationPathPermissionsTests(unittest.TestCase):
         self.assertEqual(finding.evidence, ("authorized_keys mode=0622",))
 
     def test_authorized_keys_symlink_is_not_followed(self):
+        self.assertIs(self.run_check(symlink=True).status, Status.UNKNOWN)
+
+
+class SshHostKeyPermissionsTests(unittest.TestCase):
+    def run_check(self, files=(), symlink=False):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ssh = root / "etc/ssh"
+            ssh.mkdir(parents=True)
+            for name, mode in files:
+                path = ssh / name
+                path.write_text("not-a-real-key")
+                path.chmod(mode)
+            if symlink:
+                os.symlink("/missing/key", ssh / "ssh_host_ed25519_key")
+            return SshHostKeyPermissionsCheck().run(
+                ScanContext(home=Path("/home/test"), root=root, commands=None)
+            )[0]
+
+    def test_owner_only_host_key_passes(self):
+        self.assertIs(self.run_check((("ssh_host_ed25519_key", 0o600),)).status, Status.PASS)
+
+    def test_world_readable_host_key_fails(self):
+        finding = self.run_check((("ssh_host_rsa_key", 0o644),))
+        self.assertIs(finding.status, Status.FAIL)
+        self.assertEqual(finding.evidence, ("ssh_host_rsa_key mode=0644",))
+
+    def test_host_public_key_is_not_treated_as_private_material(self):
+        self.assertIs(self.run_check((("ssh_host_ed25519_key.pub", 0o644),)).status, Status.NOT_APPLICABLE)
+
+    def test_host_key_symlink_is_not_followed(self):
         self.assertIs(self.run_check(symlink=True).status, Status.UNKNOWN)

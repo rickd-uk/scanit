@@ -152,3 +152,65 @@ class SshAuthorizationPathPermissionsCheck:
             self.check_id, self.area, "SSH authorization paths are not writable by other users", Status.PASS,
             Severity.INFO, f"Checked {paths_checked} SSH authorization path(s).", confidence=Confidence.HIGH,
         )]
+
+
+class SshHostKeyPermissionsCheck:
+    check_id = "system.ssh.host-key-permissions"
+    area = "system"
+
+    def run(self, context: ScanContext) -> list[Finding]:
+        directory = context.root / "etc/ssh"
+        try:
+            candidates = list(directory.glob("ssh_host_*_key"))
+        except OSError as error:
+            return [Finding(
+                self.check_id, self.area, "SSH host-key permissions could not be inspected", Status.UNKNOWN,
+                Severity.INFO, str(error), confidence=Confidence.LOW,
+            )]
+        if not candidates:
+            return [Finding(
+                self.check_id, self.area, "No SSH host private keys detected", Status.NOT_APPLICABLE,
+                Severity.INFO, f"No ssh_host_*_key files were found in {directory}.", confidence=Confidence.MEDIUM,
+            )]
+
+        exposed: list[str] = []
+        errors: list[str] = []
+        checked = 0
+        for path in candidates:
+            try:
+                info = path.lstat()
+            except OSError as error:
+                errors.append(f"{path.name}: {error}")
+                continue
+            if stat.S_ISLNK(info.st_mode):
+                errors.append(f"{path.name}: symbolic link was not followed")
+                continue
+            if not stat.S_ISREG(info.st_mode):
+                continue
+            checked += 1
+            mode = stat.S_IMODE(info.st_mode)
+            if mode & 0o077:
+                exposed.append(f"{path.name} mode={mode:04o}")
+        if exposed:
+            return [Finding(
+                self.check_id, self.area, "SSH host private keys are accessible to other local users", Status.FAIL,
+                Severity.HIGH, f"{len(exposed)} SSH host key file(s) grant group or other permissions.",
+                evidence=tuple(exposed),
+                remediation="Set each affected SSH host private key to owner-only mode (for example, chmod 600 /etc/ssh/ssh_host_*_key).",
+                confidence=Confidence.HIGH,
+            )]
+        if errors:
+            return [Finding(
+                self.check_id, self.area, "SSH host-key permissions could not be fully verified", Status.UNKNOWN,
+                Severity.INFO, f"Checked {checked} SSH host key file(s); {len(errors)} path(s) were skipped.",
+                evidence=tuple(errors), confidence=Confidence.LOW,
+            )]
+        if not checked:
+            return [Finding(
+                self.check_id, self.area, "No SSH host private keys detected", Status.NOT_APPLICABLE,
+                Severity.INFO, "No regular SSH host private-key files were found.", confidence=Confidence.MEDIUM,
+            )]
+        return [Finding(
+            self.check_id, self.area, "SSH host private-key permissions are owner-only", Status.PASS,
+            Severity.INFO, f"Checked {checked} SSH host private key file(s).", confidence=Confidence.HIGH,
+        )]

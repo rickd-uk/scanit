@@ -17,7 +17,7 @@ from .checks.network import IpForwardingCheck
 from .checks.packages import ForeignPackagesCheck, PacmanDatabaseFreshnessCheck, PendingPackageUpdatesCheck
 from .checks.package_trust import PacmanSignaturePolicyCheck
 from .checks.ssh import SshAuthenticationCheck
-from .checks.ssh_keys import SshAuthorizationPathPermissionsCheck, SshPrivateKeyPermissionsCheck
+from .checks.ssh_keys import SshAuthorizationPathPermissionsCheck, SshHostKeyPermissionsCheck, SshPrivateKeyPermissionsCheck
 from .checks.security_modules import LinuxSecurityModulesCheck
 from .checks.storage import RootFilesystemEncryptionCheck
 from .checks.systemd_services import SystemdDebugShellCheck
@@ -42,6 +42,7 @@ def builtin_checks() -> list[Check]:
         WildcardListenersCheck(),
         IpForwardingCheck(),
         SshAuthenticationCheck(),
+        SshHostKeyPermissionsCheck(),
         SshPrivateKeyPermissionsCheck(),
         SshAuthorizationPathPermissionsCheck(),
         RootFilesystemEncryptionCheck(),
