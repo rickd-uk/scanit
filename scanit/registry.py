@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from .checks.base import Check
 from .checks.browser_permissions import BrowserProfilePermissionsCheck
+from .checks.browser_extensions import BrowserExtensionPermissionsCheck
 from .checks.browser_processes import BrowserProcessFlagsCheck
 from .checks.filesystem import SudoersDropInPermissionsCheck, SudoersPermissionsCheck
 from .checks.firewall import FirewallServiceCheck
@@ -17,6 +18,7 @@ from .checks.vulnerabilities import ArchAuditCheck
 def builtin_checks() -> list[Check]:
     return [
         BrowserProfilePermissionsCheck(),
+        BrowserExtensionPermissionsCheck(),
         BrowserProcessFlagsCheck(),
         PendingPackageUpdatesCheck(),
         PacmanSignaturePolicyCheck(),
