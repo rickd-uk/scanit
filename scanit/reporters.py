@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import json
 
+from .comparison import ScanDelta
 from .models import ScanReport, Status
 
 
-def render_json(report: ScanReport) -> str:
-    return json.dumps(report.as_dict(), indent=2, sort_keys=True)
+def render_json(report: ScanReport, delta: ScanDelta | None = None) -> str:
+    payload = report.as_dict()
+    if delta is not None:
+        payload["baseline_delta"] = delta.as_dict()
+    return json.dumps(payload, indent=2, sort_keys=True)
 
 
 def render_sarif(report: ScanReport) -> str:
@@ -70,7 +74,7 @@ def render_sarif(report: ScanReport) -> str:
     return json.dumps(payload, indent=2, sort_keys=True)
 
 
-def render_text(report: ScanReport) -> str:
+def render_text(report: ScanReport, delta: ScanDelta | None = None) -> str:
     lines = [f"ScanIt {report.tool_version}", f"Risk score: {report.risk_score}/100"]
     coverage = "  ".join(f"{name}: {count}" for name, count in report.coverage.items() if count)
     lines.append(f"Coverage: {coverage or 'no checks selected'}")
@@ -81,4 +85,14 @@ def render_text(report: ScanReport) -> str:
             lines.append(f"  Evidence: {evidence}")
         if item.remediation:
             lines.append(f"  Remediation: {item.remediation}")
+    if delta is not None:
+        lines.extend(("", "Baseline delta:"))
+        categories = (
+            ("New failures", delta.new_failures),
+            ("Resolved failures", delta.resolved_failures),
+            ("New review items", delta.new_reviews),
+            ("Coverage regressions", delta.coverage_regressions),
+        )
+        for label, check_ids in categories:
+            lines.append(f"  {label}: {', '.join(check_ids) if check_ids else 'none'}")
     return "\n".join(lines)

@@ -47,6 +47,8 @@ sudo python3 -m scanit --system-only
 python3 -m scanit --area kernel --area network
 python3 -m scanit --check system.boot.secure-boot
 python3 -m scanit --fail-on high
+python3 -m scanit --json > baseline.json
+python3 -m scanit --baseline baseline.json
 python3 -m unittest discover -v
 ```
 
