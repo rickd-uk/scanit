@@ -2,8 +2,74 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from ..context import ScanContext
 from ..models import Confidence, Finding, Severity, Status
+
+
+@dataclass(frozen=True, slots=True)
+class NetworkControl:
+    check_id: str
+    label: str
+    relative_path: str
+    expected: int
+
+
+NETWORK_HARDENING_CONTROLS = (
+    NetworkControl("system.network.ipv4.accept-redirects", "IPv4 ICMP redirect acceptance", "proc/sys/net/ipv4/conf/all/accept_redirects", 0),
+    NetworkControl("system.network.ipv4.send-redirects", "IPv4 ICMP redirect sending", "proc/sys/net/ipv4/conf/all/send_redirects", 0),
+    NetworkControl("system.network.ipv4.reverse-path-filtering", "IPv4 reverse-path filtering", "proc/sys/net/ipv4/conf/all/rp_filter", 1),
+    NetworkControl("system.network.ipv6.accept-redirects", "IPv6 ICMP redirect acceptance", "proc/sys/net/ipv6/conf/all/accept_redirects", 0),
+)
+
+
+class NetworkHardeningCheck:
+    check_id = "system.network.hardening"
+    area = "network"
+
+    def run(self, context: ScanContext) -> list[Finding]:
+        return [self._evaluate(context, control) for control in NETWORK_HARDENING_CONTROLS]
+
+    @staticmethod
+    def _evaluate(context: ScanContext, control: NetworkControl) -> Finding:
+        path = context.root / control.relative_path
+        try:
+            raw = path.read_text(encoding="ascii").strip()
+        except FileNotFoundError:
+            return Finding(
+                control.check_id, "network", f"{control.label} control is unavailable", Status.NOT_APPLICABLE,
+                Severity.INFO, f"{path} is not exposed by this kernel.", confidence=Confidence.MEDIUM,
+            )
+        except OSError as error:
+            return Finding(
+                control.check_id, "network", f"{control.label} could not be inspected", Status.UNKNOWN,
+                Severity.INFO, str(error), confidence=Confidence.LOW,
+            )
+        try:
+            value = int(raw)
+        except ValueError:
+            return Finding(
+                control.check_id, "network", f"{control.label} has an invalid value", Status.ERROR,
+                Severity.INFO, f"{control.relative_path}={raw!r}", confidence=Confidence.LOW,
+            )
+        meets_baseline = value == 0 if control.expected == 0 else value >= control.expected
+        if meets_baseline:
+            return Finding(
+                control.check_id, "network", f"{control.label} meets the baseline", Status.PASS,
+                Severity.INFO, f"{control.relative_path}={value}; expected {NetworkHardeningCheck._expected_text(control)}.",
+                confidence=Confidence.HIGH,
+            )
+        return Finding(
+            control.check_id, "network", f"{control.label} needs review", Status.REVIEW,
+            Severity.LOW, f"{control.relative_path}={value}; expected {NetworkHardeningCheck._expected_text(control)}.",
+            remediation="Confirm this value is required by the machine's network role, then apply the appropriate persistent sysctl policy.",
+            confidence=Confidence.HIGH,
+        )
+
+    @staticmethod
+    def _expected_text(control: NetworkControl) -> str:
+        return "0" if control.expected == 0 else f"at least {control.expected}"
 
 
 class IpForwardingCheck:

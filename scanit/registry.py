@@ -13,7 +13,7 @@ from .checks.firewall import FirewallServiceCheck
 from .checks.firefox_preferences import FirefoxDangerousPreferencesCheck, FirefoxHttpsOnlyCheck
 from .checks.listeners import WildcardListenersCheck
 from .checks.kernel import KernelHardeningCheck
-from .checks.network import IpForwardingCheck
+from .checks.network import IpForwardingCheck, NetworkHardeningCheck
 from .checks.packages import ForeignPackagesCheck, PacmanDatabaseFreshnessCheck, PendingPackageUpdatesCheck
 from .checks.package_trust import PacmanSignaturePolicyCheck
 from .checks.ssh import SshAuthenticationCheck
@@ -41,6 +41,7 @@ def builtin_checks() -> list[Check]:
         FirewallServiceCheck(),
         WildcardListenersCheck(),
         IpForwardingCheck(),
+        NetworkHardeningCheck(),
         SshAuthenticationCheck(),
         SshHostKeyPermissionsCheck(),
         SshPrivateKeyPermissionsCheck(),
