@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scanit-security"
+version = "0.2.0"
+description = "A read-only Arch Linux workstation security posture auditor"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Rick D"}]
+dependencies = []
+
+[project.scripts]
+scanit = "scanit.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["scanit*"]
+
