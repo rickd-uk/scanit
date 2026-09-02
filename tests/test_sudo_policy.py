@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scanit.checks.sudo_policy import SudoPasswordlessRulesCheck
+from scanit.checks.sudo_policy import SudoBroadCommandRulesCheck, SudoPasswordlessRulesCheck
 from scanit.context import ScanContext
 from scanit.models import Status
 
@@ -81,3 +81,33 @@ class SudoPasswordlessRulesTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SudoBroadCommandRulesTests(unittest.TestCase):
+    def run_check(self, main=None, drop_ins=None):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            if main is not None:
+                path = root / "etc/sudoers"
+                path.parent.mkdir(parents=True)
+                path.write_text(main)
+            if drop_ins:
+                target = root / "etc/sudoers.d"
+                target.mkdir(parents=True, exist_ok=True)
+                for name, content in drop_ins.items():
+                    (target / name).write_text(content)
+            return SudoBroadCommandRulesCheck().run(
+                ScanContext(home=Path("/home/test"), root=root, commands=None)
+            )[0]
+
+    def test_exact_command_passes(self):
+        self.assertIs(self.run_check("deploy ALL=(root) /usr/bin/systemctl restart app.service\n").status, Status.PASS)
+
+    def test_non_root_all_command_requires_review(self):
+        self.assertIs(self.run_check("%wheel ALL=(ALL:ALL) ALL\n").status, Status.REVIEW)
+
+    def test_wildcard_arguments_require_review(self):
+        self.assertIs(self.run_check("deploy ALL=(root) /usr/bin/systemctl restart *\n").status, Status.REVIEW)
+
+    def test_standard_root_rule_is_not_reported(self):
+        self.assertIs(self.run_check("root ALL=(ALL:ALL) ALL\n").status, Status.PASS)
