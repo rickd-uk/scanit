@@ -20,7 +20,9 @@ stable machine-readable findings, safe failure, and comprehensive tests.
 - Root-volume encryption, Secure Boot, kernel hardening parameters, active Linux
   security modules, and kernel lockdown.
 - UID 0 accounts, home-directory write protection, SSH key and authorization-path
-  permissions, NTP synchronization, and sudoers permissions.
+  permissions, and NTP synchronization.
+- Sudoers ownership, drop-in permissions, syntax validation, passwordless and
+  broad command-rule review, and `secure_path` protection.
 - Scan-to-scan baseline comparison and SARIF output for CI integrations.
 
 An extension permission finding means review is warranted; it does not mean the
