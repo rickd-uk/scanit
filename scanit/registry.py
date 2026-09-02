@@ -9,6 +9,7 @@ from .checks.browser_processes import BrowserProcessFlagsCheck
 from .checks.filesystem import SudoersDropInPermissionsCheck, SudoersPermissionsCheck
 from .checks.firewall import FirewallServiceCheck
 from .checks.firefox_preferences import FirefoxDangerousPreferencesCheck
+from .checks.listeners import WildcardListenersCheck
 from .checks.packages import PendingPackageUpdatesCheck
 from .checks.package_trust import PacmanSignaturePolicyCheck
 from .checks.ssh import SshAuthenticationCheck
@@ -26,6 +27,7 @@ def builtin_checks() -> list[Check]:
         PacmanSignaturePolicyCheck(),
         ArchAuditCheck(),
         FirewallServiceCheck(),
+        WildcardListenersCheck(),
         SshAuthenticationCheck(),
         RootFilesystemEncryptionCheck(),
         SudoersPermissionsCheck(),
