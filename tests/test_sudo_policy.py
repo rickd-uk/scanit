@@ -3,7 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scanit.checks.sudo_policy import SudoBroadCommandRulesCheck, SudoPasswordlessRulesCheck
+from scanit.checks.sudo_policy import SudoBroadCommandRulesCheck, SudoPasswordlessRulesCheck, SudoPolicySyntaxCheck
+from scanit.commands import CommandResult
 from scanit.context import ScanContext
 from scanit.models import Status
 
@@ -79,10 +80,6 @@ class SudoPasswordlessRulesTests(unittest.TestCase):
         self.assertIs(finding.status, Status.UNKNOWN)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class SudoBroadCommandRulesTests(unittest.TestCase):
     def run_check(self, main=None, drop_ins=None):
         with tempfile.TemporaryDirectory() as directory:
@@ -111,3 +108,50 @@ class SudoBroadCommandRulesTests(unittest.TestCase):
 
     def test_standard_root_rule_is_not_reported(self):
         self.assertIs(self.run_check("root ALL=(ALL:ALL) ALL\n").status, Status.PASS)
+
+
+class FakeCommands:
+    def __init__(self, result):
+        self.result = result
+
+    def run(self, command, timeout=10):
+        self.command = tuple(command)
+        self.timeout = timeout
+        return self.result
+
+
+class SudoPolicySyntaxTests(unittest.TestCase):
+    def run_check(self, result, policy=True):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            if policy:
+                path = root / "etc/sudoers"
+                path.parent.mkdir(parents=True)
+                path.write_text("root ALL=(ALL:ALL) ALL\n")
+            commands = FakeCommands(result)
+            finding = SudoPolicySyntaxCheck().run(
+                ScanContext(home=Path("/home/test"), root=root, commands=commands)
+            )[0]
+            return finding, commands
+
+    def test_valid_policy_passes(self):
+        finding, commands = self.run_check(CommandResult(0, "/etc/sudoers: parsed OK"))
+        self.assertIs(finding.status, Status.PASS)
+        self.assertEqual(commands.command[:3], ("visudo", "-c", "-f"))
+
+    def test_invalid_policy_fails(self):
+        finding, _ = self.run_check(CommandResult(1, "syntax error near line 4"))
+        self.assertIs(finding.status, Status.FAIL)
+
+    def test_missing_visudo_is_unknown(self):
+        finding, _ = self.run_check(CommandResult(127, "missing"))
+        self.assertIs(finding.status, Status.UNKNOWN)
+
+    def test_missing_policy_is_not_applicable(self):
+        finding, commands = self.run_check(CommandResult(0, "unused"), policy=False)
+        self.assertIs(finding.status, Status.NOT_APPLICABLE)
+        self.assertFalse(hasattr(commands, "command"))
+
+
+if __name__ == "__main__":
+    unittest.main()

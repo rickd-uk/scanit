@@ -21,7 +21,7 @@ from .checks.ssh_keys import SshAuthorizationPathPermissionsCheck, SshHostKeyPer
 from .checks.security_modules import LinuxSecurityModulesCheck
 from .checks.storage import RootFilesystemEncryptionCheck
 from .checks.systemd_services import SystemdDebugShellCheck
-from .checks.sudo_policy import SudoBroadCommandRulesCheck, SudoPasswordlessRulesCheck
+from .checks.sudo_policy import SudoBroadCommandRulesCheck, SudoPasswordlessRulesCheck, SudoPolicySyntaxCheck
 from .checks.time_sync import NtpSynchronizationCheck
 from .checks.vulnerabilities import ArchAuditCheck
 
@@ -58,6 +58,7 @@ def builtin_checks() -> list[Check]:
         SudoersDropInPermissionsCheck(),
         SudoPasswordlessRulesCheck(),
         SudoBroadCommandRulesCheck(),
+        SudoPolicySyntaxCheck(),
         SystemdUnitPermissionsCheck(),
         SystemdDebugShellCheck(),
     ]

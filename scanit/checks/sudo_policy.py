@@ -214,3 +214,47 @@ class SudoBroadCommandRulesCheck(SudoPasswordlessRulesCheck):
         if any(not command.startswith("!") and any(character in command for character in "*?[") for command in commands):
             return "wildcard command grant"
         return None
+
+
+class SudoPolicySyntaxCheck:
+    check_id = "system.sudo.policy-syntax"
+    area = "identity"
+
+    def run(self, context: ScanContext) -> list[Finding]:
+        path = context.root / "etc/sudoers"
+        try:
+            path.lstat()
+        except FileNotFoundError:
+            return [Finding(
+                self.check_id, self.area, "Sudo policy was not found", Status.NOT_APPLICABLE,
+                Severity.INFO, f"{path} does not exist.", confidence=Confidence.HIGH,
+            )]
+        except OSError as error:
+            return [Finding(
+                self.check_id, self.area, "Sudo policy syntax could not be validated", Status.UNKNOWN,
+                Severity.INFO, str(error), confidence=Confidence.LOW,
+            )]
+
+        result = context.commands.run(("visudo", "-c", "-f", str(path)), timeout=10)
+        if result.returncode == 0:
+            return [Finding(
+                self.check_id, self.area, "Sudo policy syntax is valid", Status.PASS,
+                Severity.INFO, result.stdout or "visudo accepted the sudo policy and its includes.",
+                confidence=Confidence.HIGH,
+            )]
+        if result.returncode == 127:
+            return [Finding(
+                self.check_id, self.area, "Sudo policy validator is unavailable", Status.UNKNOWN,
+                Severity.INFO, "visudo is not available in the trusted system path.", confidence=Confidence.LOW,
+            )]
+        if result.returncode == 126:
+            return [Finding(
+                self.check_id, self.area, "Sudo policy validator could not execute", Status.UNKNOWN,
+                Severity.INFO, result.stdout or "visudo could not be executed.", confidence=Confidence.LOW,
+            )]
+        return [Finding(
+            self.check_id, self.area, "Sudo policy has validation errors", Status.FAIL,
+            Severity.HIGH, result.stdout or f"visudo exited with status {result.returncode}.",
+            remediation="Correct the reported policy error using visudo before relying on sudo access controls.",
+            confidence=Confidence.HIGH,
+        )]
