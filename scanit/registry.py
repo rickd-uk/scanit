@@ -8,7 +8,7 @@ from .checks.boot import SecureBootCheck
 from .checks.browser_permissions import BrowserProfilePermissionsCheck
 from .checks.browser_extensions import BrowserExtensionPermissionsCheck
 from .checks.browser_processes import BrowserProcessFlagsCheck
-from .checks.filesystem import SudoersDropInPermissionsCheck, SudoersPermissionsCheck, SystemdUnitPermissionsCheck
+from .checks.filesystem import SudoersDropInPermissionsCheck, SudoersPermissionsCheck, SystemdUnitPermissionsCheck, TemporaryDirectoryPermissionsCheck
 from .checks.firewall import FirewallServiceCheck
 from .checks.firefox_preferences import FirefoxDangerousPreferencesCheck, FirefoxHttpsOnlyCheck
 from .checks.listeners import WildcardListenersCheck
@@ -61,5 +61,6 @@ def builtin_checks() -> list[Check]:
         SudoPolicySyntaxCheck(),
         SudoSecurePathCheck(),
         SystemdUnitPermissionsCheck(),
+        TemporaryDirectoryPermissionsCheck(),
         SystemdDebugShellCheck(),
     ]

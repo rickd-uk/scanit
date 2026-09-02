@@ -178,3 +178,54 @@ class SystemdUnitPermissionsCheck:
             Status.PASS, Severity.INFO, f"Checked {inspected} system unit file and directory paths.",
             confidence=Confidence.HIGH,
         )]
+
+
+class TemporaryDirectoryPermissionsCheck:
+    check_id = "system.filesystem.temporary-directory-permissions"
+    area = "system"
+    relative_paths = ("tmp", "var/tmp", "dev/shm")
+
+    def run(self, context: ScanContext) -> list[Finding]:
+        unsafe: list[str] = []
+        errors: list[str] = []
+        inspected = 0
+        for relative in self.relative_paths:
+            path = context.root / relative
+            try:
+                info = path.lstat()
+            except FileNotFoundError:
+                continue
+            except OSError as error:
+                errors.append(f"{path}: {type(error).__name__}")
+                continue
+            if not stat.S_ISDIR(info.st_mode):
+                errors.append(f"{path}: not a directory")
+                continue
+            inspected += 1
+            mode = stat.S_IMODE(info.st_mode)
+            if mode & 0o002 and not (mode & stat.S_ISVTX):
+                unsafe.append(f"{path} owner uid={info.st_uid}, mode={mode:04o}")
+
+        if unsafe:
+            return [Finding(
+                self.check_id, self.area, "Temporary directories are world-writable without sticky protection", Status.FAIL,
+                Severity.HIGH, f"Found {len(unsafe)} unsafe temporary directory path(s).",
+                evidence=tuple(unsafe + errors),
+                remediation="Set the sticky bit on shared temporary directories (for example, chmod 1777 /tmp) and verify ownership.",
+                confidence=Confidence.MEDIUM if errors else Confidence.HIGH,
+            )]
+        if errors:
+            return [Finding(
+                self.check_id, self.area, "Temporary-directory permissions could not be fully inspected", Status.UNKNOWN,
+                Severity.INFO, f"Inspected {inspected} temporary directory path(s); {len(errors)} path(s) had errors.",
+                evidence=tuple(errors), confidence=Confidence.LOW,
+            )]
+        if not inspected:
+            return [Finding(
+                self.check_id, self.area, "No standard temporary directories detected", Status.NOT_APPLICABLE,
+                Severity.INFO, "None of /tmp, /var/tmp, or /dev/shm exists under the scan root.", confidence=Confidence.MEDIUM,
+            )]
+        return [Finding(
+            self.check_id, self.area, "Temporary directories have sticky protection", Status.PASS,
+            Severity.INFO, f"Checked {inspected} standard temporary directory path(s).", confidence=Confidence.HIGH,
+        )]
