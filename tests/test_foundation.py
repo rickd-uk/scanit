@@ -1,6 +1,7 @@
 import json
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 from pathlib import Path
 
 from scanit.context import ScanContext
@@ -59,6 +60,11 @@ class FoundationTests(unittest.TestCase):
         context = ScanContext(home=Path("/home/test"), root=Path("/missing-root"), commands=None)
         finding = SudoersDropInPermissionsCheck().run(context)[0]
         self.assertIs(finding.status, Status.NOT_APPLICABLE)
+
+    def test_unreadable_sudoers_drop_in_directory_is_unknown(self):
+        with patch.object(Path, "stat", side_effect=PermissionError("denied")):
+            finding = SudoersDropInPermissionsCheck().run(self.context)[0]
+        self.assertIs(finding.status, Status.UNKNOWN)
 
 
 if __name__ == "__main__":

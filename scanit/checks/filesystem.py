@@ -46,14 +46,30 @@ class SudoersDropInPermissionsCheck:
 
     def run(self, context: ScanContext) -> list[Finding]:
         directory = context.root / "etc/sudoers.d"
-        if not directory.exists():
+        try:
+            directory_info = directory.stat()
+        except FileNotFoundError:
             return [Finding(
                 self.check_id, self.area, "No sudoers drop-in directory", Status.NOT_APPLICABLE,
                 Severity.INFO, f"{directory} does not exist.",
             )]
+        except PermissionError as error:
+            return [Finding(
+                self.check_id, self.area, "Sudoers drop-ins could not be inspected", Status.UNKNOWN,
+                Severity.INFO, str(error), confidence=Confidence.LOW,
+            )]
+        except OSError as error:
+            return [Finding(
+                self.check_id, self.area, "Sudoers drop-ins could not be inspected", Status.ERROR,
+                Severity.INFO, str(error), confidence=Confidence.LOW,
+            )]
         try:
-            directory_info = directory.stat()
             entries = sorted(path for path in directory.iterdir() if path.is_file() and not path.name.endswith("~"))
+        except PermissionError as error:
+            return [Finding(
+                self.check_id, self.area, "Sudoers drop-ins could not be inspected", Status.UNKNOWN,
+                Severity.INFO, str(error), confidence=Confidence.LOW,
+            )]
         except OSError as error:
             return [Finding(
                 self.check_id, self.area, "Sudoers drop-ins could not be inspected", Status.ERROR,
