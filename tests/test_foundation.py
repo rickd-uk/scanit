@@ -1,4 +1,5 @@
 import json
+import tempfile
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -65,6 +66,20 @@ class FoundationTests(unittest.TestCase):
         with patch.object(Path, "stat", side_effect=PermissionError("denied")):
             finding = SudoersDropInPermissionsCheck().run(self.context)[0]
         self.assertIs(finding.status, Status.UNKNOWN)
+
+    def test_ignored_sudoers_drop_in_names_are_not_counted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            drop_ins = root / "etc/sudoers.d"
+            drop_ins.mkdir(parents=True)
+            (drop_ins / "README.example").write_text("ignored")
+            (drop_ins / "backup~").write_text("ignored")
+            with patch("scanit.checks.filesystem.unsafe_privileged_metadata", return_value=False):
+                finding = SudoersDropInPermissionsCheck().run(
+                    ScanContext(home=Path("/home/test"), root=root, commands=None)
+                )[0]
+        self.assertIs(finding.status, Status.PASS)
+        self.assertIn("Checked 0", finding.summary)
 
 
 if __name__ == "__main__":

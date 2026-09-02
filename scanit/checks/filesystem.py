@@ -64,7 +64,10 @@ class SudoersDropInPermissionsCheck:
                 Severity.INFO, str(error), confidence=Confidence.LOW,
             )]
         try:
-            entries = sorted(path for path in directory.iterdir() if path.is_file() and not path.name.endswith("~"))
+            entries = sorted(
+                path for path in directory.iterdir()
+                if "." not in path.name and not path.name.endswith("~")
+            )
         except PermissionError as error:
             return [Finding(
                 self.check_id, self.area, "Sudoers drop-ins could not be inspected", Status.UNKNOWN,
@@ -77,6 +80,8 @@ class SudoersDropInPermissionsCheck:
             )]
 
         unsafe: list[str] = []
+        unreadable: list[str] = []
+        inspected = 0
         if unsafe_privileged_metadata(directory_info):
             mode = stat.S_IMODE(directory_info.st_mode)
             unsafe.append(f"{directory} owner uid={directory_info.st_uid}, mode={mode:04o}")
@@ -84,8 +89,11 @@ class SudoersDropInPermissionsCheck:
             try:
                 info = entry.stat()
             except OSError as error:
-                unsafe.append(f"{entry}: could not read metadata: {error}")
+                unreadable.append(f"{entry}: could not read metadata: {error}")
                 continue
+            if not stat.S_ISREG(info.st_mode):
+                continue
+            inspected += 1
             if unsafe_privileged_metadata(info):
                 mode = stat.S_IMODE(info.st_mode)
                 unsafe.append(f"{entry} owner uid={info.st_uid}, mode={mode:04o}")
@@ -94,10 +102,17 @@ class SudoersDropInPermissionsCheck:
             return [Finding(
                 self.check_id, self.area, "Sudoers drop-in permissions are unsafe", Status.FAIL,
                 Severity.CRITICAL, f"{len(unsafe)} unsafe sudoers drop-in path(s) found.",
-                evidence=tuple(unsafe),
+                evidence=tuple(unsafe + unreadable),
                 remediation="Set root ownership and remove group/other write access, then validate with visudo.",
+                confidence=Confidence.MEDIUM if unreadable else Confidence.HIGH,
+            )]
+        if unreadable:
+            return [Finding(
+                self.check_id, self.area, "Sudoers drop-in permissions could not be fully inspected",
+                Status.UNKNOWN, Severity.INFO, f"Could not inspect {len(unreadable)} active drop-in path(s).",
+                evidence=tuple(unreadable), confidence=Confidence.LOW,
             )]
         return [Finding(
             self.check_id, self.area, "Sudoers drop-in permissions are safe", Status.PASS,
-            Severity.INFO, f"Checked {len(entries)} active sudoers drop-in file(s).",
+            Severity.INFO, f"Checked {inspected} active sudoers drop-in file(s).",
         )]
