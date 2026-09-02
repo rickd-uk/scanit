@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .checks.base import Check
-from .checks.accounts import UidZeroAccountsCheck
+from .checks.accounts import HomeDirectoryPermissionsCheck, UidZeroAccountsCheck
 from .checks.boot import SecureBootCheck
 from .checks.browser_permissions import BrowserProfilePermissionsCheck
 from .checks.browser_extensions import BrowserExtensionPermissionsCheck
@@ -36,6 +36,7 @@ def builtin_checks() -> list[Check]:
         SecureBootCheck(),
         KernelHardeningCheck(),
         UidZeroAccountsCheck(),
+        HomeDirectoryPermissionsCheck(),
         SudoersPermissionsCheck(),
         SudoersDropInPermissionsCheck(),
     ]

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import stat
+
 from ..context import ScanContext
 from ..models import Confidence, Finding, Severity, Status
 
@@ -66,4 +69,45 @@ class UidZeroAccountsCheck:
         return [Finding(
             self.check_id, self.area, "Only root has UID 0", Status.PASS,
             Severity.INFO, "No additional UID 0 accounts were found.", confidence=Confidence.HIGH,
+        )]
+
+
+class HomeDirectoryPermissionsCheck:
+    check_id = "system.identity.home-permissions"
+    area = "identity"
+
+    def run(self, context: ScanContext) -> list[Finding]:
+        path = context.home
+        try:
+            info = path.stat()
+        except FileNotFoundError:
+            return [Finding(
+                self.check_id, self.area, "Home-directory permissions could not be inspected",
+                Status.UNKNOWN, Severity.INFO, f"{path} does not exist.", confidence=Confidence.LOW,
+            )]
+        except OSError as error:
+            return [Finding(
+                self.check_id, self.area, "Home-directory permissions could not be inspected",
+                Status.UNKNOWN, Severity.INFO, str(error), confidence=Confidence.LOW,
+            )]
+
+        mode = stat.S_IMODE(info.st_mode)
+        evidence: list[str] = []
+        if info.st_uid != os.getuid():
+            evidence.append(f"owner uid={info.st_uid}; current uid={os.getuid()}")
+        if mode & 0o020:
+            evidence.append(f"group-writable mode={mode:04o}")
+        if mode & 0o002:
+            evidence.append(f"world-writable mode={mode:04o}")
+        if evidence:
+            return [Finding(
+                self.check_id, self.area, "Home directory permits unsafe modification", Status.FAIL,
+                Severity.HIGH, "The current user's home can be modified outside its expected ownership boundary.",
+                evidence=tuple(evidence),
+                remediation="Restore the current user's ownership and remove group/other write permission from the home directory.",
+                confidence=Confidence.HIGH,
+            )]
+        return [Finding(
+            self.check_id, self.area, "Home directory ownership and write permissions are safe",
+            Status.PASS, Severity.INFO, f"{path} owner uid={info.st_uid}, mode={mode:04o}.",
         )]

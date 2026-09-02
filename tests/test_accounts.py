@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scanit.checks.accounts import UidZeroAccountsCheck
+from scanit.checks.accounts import HomeDirectoryPermissionsCheck, UidZeroAccountsCheck
 from scanit.context import ScanContext
 from scanit.models import Status
 
@@ -33,6 +33,29 @@ class UidZeroAccountsTests(unittest.TestCase):
     def test_malformed_entry_makes_clean_result_unknown(self):
         finding = self.run_check("root:x:0:0:root:/root:/bin/bash\nbroken\n")
         self.assertIs(finding.status, Status.UNKNOWN)
+
+
+class HomeDirectoryPermissionsTests(unittest.TestCase):
+    def run_check(self, home):
+        context = ScanContext(home=home, root=Path("/"), commands=None)
+        return HomeDirectoryPermissionsCheck().run(context)[0]
+
+    def test_owner_only_home_passes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            home.chmod(0o700)
+            self.assertIs(self.run_check(home).status, Status.PASS)
+
+    def test_world_writable_home_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            home.chmod(0o707)
+            finding = self.run_check(home)
+            self.assertIs(finding.status, Status.FAIL)
+            self.assertIn("world-writable", finding.evidence[0])
+
+    def test_missing_home_is_unknown(self):
+        self.assertIs(self.run_check(Path("/missing-home-for-scanit-tests")).status, Status.UNKNOWN)
 
 
 if __name__ == "__main__":
