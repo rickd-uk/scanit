@@ -5,6 +5,7 @@ from __future__ import annotations
 import stat
 from pathlib import Path
 
+from ..browser_profiles import discover_browser_profiles
 from ..context import ScanContext
 from ..models import Finding, Severity, Status
 
@@ -54,30 +55,4 @@ class BrowserProfilePermissionsCheck:
 
     @staticmethod
     def _discover_profiles(home: Path) -> list[Path]:
-        chromium_roots = (
-            home / ".config/BraveSoftware/Brave-Browser",
-            home / ".config/chromium",
-            home / ".config/google-chrome",
-            home / ".var/app/com.brave.Browser/config/BraveSoftware/Brave-Browser",
-            home / ".var/app/org.chromium.Chromium/config/chromium",
-            home / ".var/app/com.google.Chrome/config/google-chrome",
-        )
-        profiles: set[Path] = set()
-        for root in chromium_roots:
-            if not root.is_dir():
-                continue
-            for candidate in root.iterdir():
-                if candidate.is_dir() and (candidate / "Preferences").is_file():
-                    profiles.add(candidate)
-
-        firefox_roots = (
-            home / ".mozilla/firefox",
-            home / ".var/app/org.mozilla.firefox/.mozilla/firefox",
-        )
-        for root in firefox_roots:
-            if not root.is_dir():
-                continue
-            for candidate in root.iterdir():
-                if candidate.is_dir() and (candidate / "prefs.js").is_file():
-                    profiles.add(candidate)
-        return sorted(profiles)
+        return [profile.path for profile in discover_browser_profiles(home)]
