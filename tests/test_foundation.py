@@ -6,6 +6,7 @@ from scanit.context import ScanContext
 from scanit.models import Confidence, Finding, Severity, Status
 from scanit.reporters import render_json
 from scanit.runner import run_checks
+from scanit.checks.filesystem import SudoersPermissionsCheck
 
 
 class ExplodingCheck:
@@ -44,6 +45,9 @@ class FoundationTests(unittest.TestCase):
         payload = json.loads(render_json(report))
         self.assertEqual(payload["schema_version"], 1)
         self.assertEqual(payload["findings"][0]["check_id"], "test.failure")
+
+    def test_registry_contains_filesystem_check(self):
+        self.assertEqual(SudoersPermissionsCheck().check_id, "system.filesystem.sudoers-permissions")
 
 
 if __name__ == "__main__":
