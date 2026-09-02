@@ -9,7 +9,12 @@ from scanit.context import ScanContext
 from scanit.models import Confidence, Finding, ScanReport, Severity, Status
 from scanit.reporters import render_json, render_sarif
 from scanit.runner import run_checks
-from scanit.checks.filesystem import SudoersDropInPermissionsCheck, SudoersPermissionsCheck, unsafe_privileged_metadata
+from scanit.checks.filesystem import (
+    SudoersDropInPermissionsCheck,
+    SudoersPermissionsCheck,
+    SystemdUnitPermissionsCheck,
+    unsafe_privileged_metadata,
+)
 
 
 class ExplodingCheck:
@@ -94,6 +99,33 @@ class FoundationTests(unittest.TestCase):
                 )[0]
         self.assertIs(finding.status, Status.PASS)
         self.assertIn("Checked 0", finding.summary)
+
+    def test_missing_systemd_unit_roots_are_unknown(self):
+        with tempfile.TemporaryDirectory() as directory:
+            context = ScanContext(home=Path("/home/test"), root=Path(directory), commands=None)
+            finding = SystemdUnitPermissionsCheck().run(context)[0]
+        self.assertIs(finding.status, Status.UNKNOWN)
+
+    def test_non_root_systemd_unit_path_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            units = root / "etc/systemd/system"
+            units.mkdir(parents=True)
+            (units / "example.service").write_text("[Service]\nExecStart=/bin/true\n")
+            context = ScanContext(home=Path("/home/test"), root=root, commands=None)
+            finding = SystemdUnitPermissionsCheck().run(context)[0]
+        self.assertIs(finding.status, Status.FAIL)
+
+    def test_safe_systemd_unit_metadata_passes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            units = root / "etc/systemd/system"
+            units.mkdir(parents=True)
+            (units / "example.service").write_text("[Service]\nExecStart=/bin/true\n")
+            context = ScanContext(home=Path("/home/test"), root=root, commands=None)
+            with patch("scanit.checks.filesystem.unsafe_privileged_metadata", return_value=False):
+                finding = SystemdUnitPermissionsCheck().run(context)[0]
+        self.assertIs(finding.status, Status.PASS)
 
 
 if __name__ == "__main__":

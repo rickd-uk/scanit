@@ -116,3 +116,65 @@ class SudoersDropInPermissionsCheck:
             self.check_id, self.area, "Sudoers drop-in permissions are safe", Status.PASS,
             Severity.INFO, f"Checked {inspected} active sudoers drop-in file(s).",
         )]
+
+
+class SystemdUnitPermissionsCheck:
+    check_id = "system.filesystem.systemd-unit-permissions"
+    area = "system"
+    evidence_limit = 50
+
+    def run(self, context: ScanContext) -> list[Finding]:
+        roots = (
+            context.root / "etc/systemd/system",
+            context.root / "usr/lib/systemd/system",
+        )
+        present = [root for root in roots if root.is_dir()]
+        if not present:
+            return [Finding(
+                self.check_id, self.area, "Systemd unit permissions could not be inspected",
+                Status.UNKNOWN, Severity.INFO, "No supported system unit directories were found.",
+                confidence=Confidence.LOW,
+            )]
+
+        unsafe: list[str] = []
+        errors: list[str] = []
+        inspected = 0
+        for root in present:
+            for path in (root, *root.rglob("*")):
+                try:
+                    info = path.lstat()
+                except OSError as error:
+                    errors.append(f"{path}: {type(error).__name__}")
+                    continue
+                if stat.S_ISLNK(info.st_mode):
+                    continue
+                if not (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode)):
+                    continue
+                inspected += 1
+                if unsafe_privileged_metadata(info):
+                    mode = stat.S_IMODE(info.st_mode)
+                    unsafe.append(f"{path} owner uid={info.st_uid}, mode={mode:04o}")
+
+        if unsafe:
+            evidence = unsafe[: self.evidence_limit]
+            if len(unsafe) > self.evidence_limit:
+                evidence.append(f"... {len(unsafe) - self.evidence_limit} additional path(s) omitted")
+            evidence.extend(errors[: max(0, self.evidence_limit - len(evidence))])
+            return [Finding(
+                self.check_id, self.area, "Systemd unit paths have unsafe permissions", Status.FAIL,
+                Severity.CRITICAL, f"Found {len(unsafe)} system unit path(s) outside the root-only write boundary.",
+                evidence=tuple(evidence),
+                remediation="Restore root ownership and remove group/other write access from affected system unit paths.",
+                confidence=Confidence.MEDIUM if errors else Confidence.HIGH,
+            )]
+        if errors:
+            return [Finding(
+                self.check_id, self.area, "Systemd unit permissions could not be fully inspected",
+                Status.UNKNOWN, Severity.INFO, f"Could not inspect {len(errors)} system unit path(s).",
+                evidence=tuple(errors[: self.evidence_limit]), confidence=Confidence.LOW,
+            )]
+        return [Finding(
+            self.check_id, self.area, "Systemd unit paths have root-only write protection",
+            Status.PASS, Severity.INFO, f"Checked {inspected} system unit file and directory paths.",
+            confidence=Confidence.HIGH,
+        )]
