@@ -18,6 +18,7 @@ from .checks.package_trust import PacmanSignaturePolicyCheck
 from .checks.ssh import SshAuthenticationCheck
 from .checks.security_modules import LinuxSecurityModulesCheck
 from .checks.storage import RootFilesystemEncryptionCheck
+from .checks.time_sync import NtpSynchronizationCheck
 from .checks.vulnerabilities import ArchAuditCheck
 
 
@@ -31,6 +32,7 @@ def builtin_checks() -> list[Check]:
         PendingPackageUpdatesCheck(),
         PacmanDatabaseFreshnessCheck(),
         ForeignPackagesCheck(),
+        NtpSynchronizationCheck(),
         PacmanSignaturePolicyCheck(),
         ArchAuditCheck(),
         FirewallServiceCheck(),
