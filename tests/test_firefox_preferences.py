@@ -30,11 +30,11 @@ class FirefoxDangerousPreferencesTests(unittest.TestCase):
             self.assertIs(finding.status, Status.FAIL)
             self.assertIs(finding.severity, Severity.HIGH)
 
-    def test_enterprise_roots_override_fails_medium(self):
+    def test_enterprise_roots_override_requires_review(self):
         with tempfile.TemporaryDirectory() as directory:
             self.profile(Path(directory), 'user_pref("security.enterprise_roots.enabled", true);\n')
             finding = self.run_check(Path(directory))
-            self.assertIs(finding.status, Status.FAIL)
+            self.assertIs(finding.status, Status.REVIEW)
             self.assertIs(finding.severity, Severity.MEDIUM)
 
     def test_unrelated_preferences_pass(self):

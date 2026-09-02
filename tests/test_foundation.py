@@ -6,7 +6,7 @@ from unittest.mock import patch
 from pathlib import Path
 
 from scanit.context import ScanContext
-from scanit.models import Confidence, Finding, Severity, Status
+from scanit.models import Confidence, Finding, ScanReport, Severity, Status
 from scanit.reporters import render_json, render_sarif
 from scanit.runner import run_checks
 from scanit.checks.filesystem import SudoersDropInPermissionsCheck, SudoersPermissionsCheck, unsafe_privileged_metadata
@@ -46,7 +46,7 @@ class FoundationTests(unittest.TestCase):
     def test_json_schema_is_stable_and_serializable(self):
         report = run_checks([FailingCheck()], self.context, "test")
         payload = json.loads(render_json(report))
-        self.assertEqual(payload["schema_version"], 1)
+        self.assertEqual(payload["schema_version"], 2)
         self.assertEqual(payload["findings"][0]["check_id"], "test.failure")
 
     def test_sarif_contains_failed_findings(self):
@@ -55,6 +55,13 @@ class FoundationTests(unittest.TestCase):
         self.assertEqual(payload["version"], "2.1.0")
         self.assertEqual(payload["runs"][0]["results"][0]["ruleId"], "test.failure")
         self.assertEqual(payload["runs"][0]["results"][0]["level"], "error")
+
+    def test_review_findings_do_not_increase_risk(self):
+        report = ScanReport("test", [
+            Finding("test.review", "test", "Review", Status.REVIEW, Severity.HIGH, "review this"),
+        ])
+        self.assertEqual(report.risk_score, 0)
+        self.assertEqual(report.coverage["review"], 1)
 
     def test_registry_contains_filesystem_check(self):
         self.assertEqual(SudoersPermissionsCheck().check_id, "system.filesystem.sudoers-permissions")

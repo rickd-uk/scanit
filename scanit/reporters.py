@@ -43,9 +43,10 @@ def render_sarif(report: ScanReport) -> str:
         details = [finding.summary, *finding.evidence]
         if finding.remediation:
             details.append("Remediation: " + finding.remediation)
+        sarif_level = "warning" if finding.status is Status.REVIEW else level[finding.severity.value]
         results.append({
             "ruleId": finding.check_id,
-            "level": level[finding.severity.value],
+            "level": sarif_level,
             "message": {"text": "\n".join(details)},
             "properties": {
                 "status": finding.status.value,
@@ -74,7 +75,7 @@ def render_text(report: ScanReport) -> str:
     coverage = "  ".join(f"{name}: {count}" for name, count in report.coverage.items() if count)
     lines.append(f"Coverage: {coverage or 'no checks selected'}")
     for item in report.findings:
-        marker = "!" if item.status is Status.FAIL else "-"
+        marker = {Status.FAIL: "!", Status.REVIEW: "?"}.get(item.status, "-")
         lines.extend(("", f"{marker} [{item.check_id}] {item.status.value.upper()} — {item.title}", f"  {item.summary}"))
         for evidence in item.evidence:
             lines.append(f"  Evidence: {evidence}")

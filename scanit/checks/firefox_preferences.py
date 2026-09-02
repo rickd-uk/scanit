@@ -44,10 +44,11 @@ class FirefoxDangerousPreferencesCheck:
         if evidence:
             severity_order = [Severity.INFO, Severity.LOW, Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL]
             severity = max(severities, key=severity_order.index)
+            status = Status.FAIL if severity is Severity.HIGH else Status.REVIEW
             suffix = f" {len(errors)} profile(s) could not be read." if errors else ""
             return [Finding(
                 self.check_id, self.area, "Firefox has explicit security-weakening preferences",
-                Status.FAIL, severity, f"Found {len(evidence)} preference override(s).{suffix}",
+                status, severity, f"Found {len(evidence)} preference override(s).{suffix}",
                 evidence=tuple(evidence + errors),
                 remediation="Reset legacy TLS overrides and trust enterprise roots only when intentionally managed.",
                 confidence=Confidence.MEDIUM,

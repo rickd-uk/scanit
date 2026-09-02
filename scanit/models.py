@@ -10,6 +10,7 @@ from typing import Any
 class Status(StrEnum):
     PASS = "pass"
     FAIL = "fail"
+    REVIEW = "review"
     UNKNOWN = "unknown"
     ERROR = "error"
     NOT_APPLICABLE = "not_applicable"
@@ -81,11 +82,10 @@ class ScanReport:
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "tool": "ScanIt",
             "tool_version": self.tool_version,
             "risk_score": self.risk_score,
             "coverage": self.coverage,
             "findings": [item.as_dict() for item in self.findings],
         }
-

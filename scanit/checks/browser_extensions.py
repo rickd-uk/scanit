@@ -72,7 +72,7 @@ class BrowserExtensionPermissionsCheck:
             suffix = f" {len(errors)} manifest(s) could not be inspected." if errors else ""
             return [Finding(
                 self.check_id, self.area, "Browser extensions request powerful permissions",
-                Status.FAIL, severity, f"Found {len(risky)} extension(s) requiring review.{suffix}",
+                Status.REVIEW, severity, f"Found {len(risky)} extension(s) requiring review.{suffix}",
                 evidence=tuple(risky + errors),
                 remediation="Review whether each extension needs these permissions and remove extensions you do not trust.",
                 confidence=Confidence.MEDIUM if errors else Confidence.HIGH,

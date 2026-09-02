@@ -38,7 +38,7 @@ class WildcardListenersCheck:
         if wildcard:
             return [Finding(
                 self.check_id, self.area, "Services listen on wildcard network addresses",
-                Status.FAIL, Severity.LOW,
+                Status.REVIEW, Severity.LOW,
                 f"Found {len(wildcard)} wildcard-bound listening socket(s); firewall rules may still restrict access.",
                 evidence=tuple(wildcard),
                 remediation="Confirm each listener is required and restrict its bind address or firewall exposure where appropriate.",

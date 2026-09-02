@@ -21,14 +21,14 @@ class WildcardListenersTests(unittest.TestCase):
         context = ScanContext(home=Path("/home/test"), root=Path("/"), commands=FakeCommands(result))
         return WildcardListenersCheck().run(context)[0]
 
-    def test_wildcard_listener_fails(self):
+    def test_wildcard_listener_requires_review(self):
         finding = self.run_check(CommandResult(0, "tcp LISTEN 0 128 0.0.0.0:22 0.0.0.0:*"))
-        self.assertIs(finding.status, Status.FAIL)
+        self.assertIs(finding.status, Status.REVIEW)
         self.assertEqual(finding.evidence, ("tcp 0.0.0.0:22",))
 
-    def test_ipv6_wildcard_listener_fails(self):
+    def test_ipv6_wildcard_listener_requires_review(self):
         finding = self.run_check(CommandResult(0, "tcp LISTEN 0 128 [::]:443 [::]:*"))
-        self.assertIs(finding.status, Status.FAIL)
+        self.assertIs(finding.status, Status.REVIEW)
 
     def test_loopback_listener_passes(self):
         finding = self.run_check(CommandResult(0, "tcp LISTEN 0 128 127.0.0.1:8080 0.0.0.0:*"))

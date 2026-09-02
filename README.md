@@ -65,6 +65,8 @@ when collecting results without a policy exit code.
 
 - `pass`: the tested control met the check's policy.
 - `fail`: evidence shows the policy was not met.
+- `review`: a potentially high-impact capability or exposure needs human context;
+  it does not contribute to the risk score or failure exit status.
 - `unknown`: the machine did not provide enough evidence.
 - `error`: the check could not complete.
 - `not_applicable`: the control does not apply to this machine.
