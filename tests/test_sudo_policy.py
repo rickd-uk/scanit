@@ -3,10 +3,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scanit.checks.sudo_policy import SudoBroadCommandRulesCheck, SudoPasswordlessRulesCheck, SudoPolicySyntaxCheck
+from scanit.checks.sudo_policy import SudoBroadCommandRulesCheck, SudoPasswordlessRulesCheck, SudoPolicySyntaxCheck, SudoSecurePathCheck
 from scanit.commands import CommandResult
 from scanit.context import ScanContext
 from scanit.models import Status
+from unittest.mock import patch
 
 
 class SudoPasswordlessRulesTests(unittest.TestCase):
@@ -151,6 +152,43 @@ class SudoPolicySyntaxTests(unittest.TestCase):
         finding, commands = self.run_check(CommandResult(0, "unused"), policy=False)
         self.assertIs(finding.status, Status.NOT_APPLICABLE)
         self.assertFalse(hasattr(commands, "command"))
+
+
+class SudoSecurePathTests(unittest.TestCase):
+    def run_check(self, policy, directories=()):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sudoers = root / "etc/sudoers"
+            sudoers.parent.mkdir(parents=True)
+            sudoers.write_text(policy)
+            for relative in directories:
+                (root / relative).mkdir(parents=True, exist_ok=True)
+            with patch("scanit.checks.sudo_policy.unsafe_privileged_metadata", return_value=False):
+                return SudoSecurePathCheck().run(
+                    ScanContext(home=Path("/home/test"), root=root, commands=None)
+                )[0]
+
+    def test_protected_absolute_path_passes(self):
+        finding = self.run_check('Defaults secure_path="/usr/bin:/usr/sbin"\n', ("usr/bin", "usr/sbin"))
+        self.assertIs(finding.status, Status.PASS)
+
+    def test_relative_component_fails(self):
+        finding = self.run_check('Defaults secure_path="/usr/bin:local/bin"\n', ("usr/bin",))
+        self.assertIs(finding.status, Status.FAIL)
+
+    def test_empty_component_fails(self):
+        finding = self.run_check('Defaults secure_path="/usr/bin::/usr/sbin"\n', ("usr/bin", "usr/sbin"))
+        self.assertIs(finding.status, Status.FAIL)
+
+    def test_parent_traversal_component_fails(self):
+        finding = self.run_check('Defaults secure_path="/usr/../../tmp/bin"\n')
+        self.assertIs(finding.status, Status.FAIL)
+
+    def test_missing_definition_is_unknown(self):
+        self.assertIs(self.run_check("Defaults env_reset\n").status, Status.UNKNOWN)
+
+    def test_missing_directory_is_unknown(self):
+        self.assertIs(self.run_check('Defaults secure_path="/missing/bin"\n').status, Status.UNKNOWN)
 
 
 if __name__ == "__main__":

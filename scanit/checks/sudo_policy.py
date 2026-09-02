@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import stat
-from pathlib import Path
+import re
+from pathlib import Path, PurePosixPath
 
 from ..context import ScanContext
 from ..models import Confidence, Finding, Severity, Status
+from .filesystem import unsafe_privileged_metadata
 
 
 class SudoPasswordlessRulesCheck:
@@ -256,5 +258,84 @@ class SudoPolicySyntaxCheck:
             self.check_id, self.area, "Sudo policy has validation errors", Status.FAIL,
             Severity.HIGH, result.stdout or f"visudo exited with status {result.returncode}.",
             remediation="Correct the reported policy error using visudo before relying on sudo access controls.",
+            confidence=Confidence.HIGH,
+        )]
+
+
+class SudoSecurePathCheck(SudoPasswordlessRulesCheck):
+    check_id = "system.sudo.secure-path"
+    assignment = re.compile(r"\bsecure_path\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|([^,\s]+))", re.IGNORECASE)
+
+    def run(self, context: ScanContext) -> list[Finding]:
+        paths, errors = self._policy_paths(context.root / "etc/sudoers", context.root / "etc/sudoers.d")
+        values: list[tuple[Path, int, str]] = []
+        inspected = 0
+        for path in paths:
+            try:
+                info = path.lstat()
+                if stat.S_ISLNK(info.st_mode):
+                    errors.append(f"{path}: symbolic link was not followed")
+                    continue
+                if not stat.S_ISREG(info.st_mode) or info.st_size > self.maximum_file_bytes:
+                    errors.append(f"{path}: unsupported file type or size")
+                    continue
+                text = path.read_text(encoding="utf-8", errors="replace")
+            except OSError as error:
+                errors.append(f"{path}: {type(error).__name__}")
+                continue
+            inspected += 1
+            errors.extend(self._unresolved_includes(path, text))
+            for line_number, logical_line in self._logical_lines(text):
+                policy = logical_line.split("#", 1)[0].strip()
+                if not policy.casefold().startswith("defaults"):
+                    continue
+                match = self.assignment.search(policy)
+                if match:
+                    values.append((path, line_number, next(value for value in match.groups() if value is not None)))
+
+        unsafe: list[str] = []
+        checked_directories: set[Path] = set()
+        for source, line_number, value in values:
+            for component in value.split(":"):
+                parsed = PurePosixPath(component)
+                if not component or component == "." or not parsed.is_absolute() or ".." in parsed.parts:
+                    unsafe.append(f"{source}:{line_number}: unsafe secure_path component {component!r}")
+                    continue
+                target = context.root.joinpath(*parsed.parts[1:])
+                boundary = context.root.parent
+                for directory in (target, *target.parents):
+                    if directory == boundary:
+                        break
+                    if directory in checked_directories:
+                        continue
+                    checked_directories.add(directory)
+                    try:
+                        info = directory.lstat()
+                    except OSError as error:
+                        errors.append(f"{directory}: {type(error).__name__}")
+                        continue
+                    if stat.S_ISLNK(info.st_mode):
+                        errors.append(f"{directory}: symbolic link target was not evaluated")
+                    elif not stat.S_ISDIR(info.st_mode) or unsafe_privileged_metadata(info):
+                        mode = stat.S_IMODE(info.st_mode)
+                        unsafe.append(f"{directory}: owner uid={info.st_uid}, mode={mode:04o}")
+
+        if unsafe:
+            return [Finding(
+                self.check_id, self.area, "Sudo secure_path has unsafe components", Status.FAIL,
+                Severity.HIGH, f"Found {len(unsafe)} unsafe secure_path component(s).",
+                evidence=tuple((unsafe + errors)[: self.evidence_limit]),
+                remediation="Use only absolute, root-owned directories without group/other write access in sudo secure_path.",
+                confidence=Confidence.MEDIUM if errors else Confidence.HIGH,
+            )]
+        if errors or not values:
+            detail = "No configured secure_path was found; the compiled sudo default could not be established." if not values else f"Could not verify {len(errors)} policy or path item(s)."
+            return [Finding(
+                self.check_id, self.area, "Sudo secure_path could not be fully verified", Status.UNKNOWN,
+                Severity.INFO, detail, evidence=tuple(errors[: self.evidence_limit]), confidence=Confidence.LOW,
+            )]
+        return [Finding(
+            self.check_id, self.area, "Sudo secure_path directories are protected", Status.PASS,
+            Severity.INFO, f"Verified {len(checked_directories)} directory path(s) from {len(values)} secure_path definition(s).",
             confidence=Confidence.HIGH,
         )]
