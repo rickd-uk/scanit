@@ -15,11 +15,12 @@ stable machine-readable findings, safe failure, and comprehensive tests.
 - Pending Arch updates, repository database freshness, package signatures,
   foreign-package inventory, and optional vulnerability matching through
   `arch-audit`.
-- Firewall service activity, wildcard listeners, and effective SSH root/password
-  authentication settings.
+- Firewall service activity, wildcard listeners, IP-forwarding role review, and
+  effective SSH root/password authentication settings.
 - Root-volume encryption, Secure Boot, kernel hardening parameters, active Linux
   security modules, and kernel lockdown.
-- UID 0 accounts, home-directory write protection, and sudoers permissions.
+- UID 0 accounts, home-directory write protection, SSH key and authorization-path
+  permissions, NTP synchronization, and sudoers permissions.
 - Scan-to-scan baseline comparison and SARIF output for CI integrations.
 
 An extension permission finding means review is warranted; it does not mean the
