@@ -1,12 +1,13 @@
 import json
 import unittest
+from types import SimpleNamespace
 from pathlib import Path
 
 from scanit.context import ScanContext
 from scanit.models import Confidence, Finding, Severity, Status
 from scanit.reporters import render_json
 from scanit.runner import run_checks
-from scanit.checks.filesystem import SudoersPermissionsCheck
+from scanit.checks.filesystem import SudoersDropInPermissionsCheck, SudoersPermissionsCheck, unsafe_privileged_metadata
 
 
 class ExplodingCheck:
@@ -48,6 +49,16 @@ class FoundationTests(unittest.TestCase):
 
     def test_registry_contains_filesystem_check(self):
         self.assertEqual(SudoersPermissionsCheck().check_id, "system.filesystem.sudoers-permissions")
+
+    def test_privileged_metadata_requires_root_and_no_non_owner_write(self):
+        self.assertFalse(unsafe_privileged_metadata(SimpleNamespace(st_uid=0, st_mode=0o100440)))
+        self.assertTrue(unsafe_privileged_metadata(SimpleNamespace(st_uid=1000, st_mode=0o100440)))
+        self.assertTrue(unsafe_privileged_metadata(SimpleNamespace(st_uid=0, st_mode=0o100664)))
+
+    def test_missing_sudoers_drop_in_directory_is_not_applicable(self):
+        context = ScanContext(home=Path("/home/test"), root=Path("/missing-root"), commands=None)
+        finding = SudoersDropInPermissionsCheck().run(context)[0]
+        self.assertIs(finding.status, Status.NOT_APPLICABLE)
 
 
 if __name__ == "__main__":
