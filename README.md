@@ -12,13 +12,15 @@ stable machine-readable findings, safe failure, and comprehensive tests.
 
 - Browser profile permissions, powerful extension permissions, dangerous
   process flags, and explicit Firefox security-weakening preferences.
-- Pending Arch updates, repository database freshness, package signatures, and
-  optional vulnerability matching through `arch-audit`.
+- Pending Arch updates, repository database freshness, package signatures,
+  foreign-package inventory, and optional vulnerability matching through
+  `arch-audit`.
 - Firewall service activity, wildcard listeners, and effective SSH root/password
   authentication settings.
 - Root-volume encryption, Secure Boot, kernel hardening parameters, active Linux
   security modules, and kernel lockdown.
 - UID 0 accounts, home-directory write protection, and sudoers permissions.
+- Scan-to-scan baseline comparison and SARIF output for CI integrations.
 
 An extension permission finding means review is warranted; it does not mean the
 extension is malicious. Likewise, a listening socket may still be protected by
