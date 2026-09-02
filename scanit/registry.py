@@ -16,6 +16,7 @@ from .checks.kernel import KernelHardeningCheck
 from .checks.packages import PendingPackageUpdatesCheck
 from .checks.package_trust import PacmanSignaturePolicyCheck
 from .checks.ssh import SshAuthenticationCheck
+from .checks.security_modules import LinuxSecurityModulesCheck
 from .checks.storage import RootFilesystemEncryptionCheck
 from .checks.vulnerabilities import ArchAuditCheck
 
@@ -35,6 +36,7 @@ def builtin_checks() -> list[Check]:
         RootFilesystemEncryptionCheck(),
         SecureBootCheck(),
         KernelHardeningCheck(),
+        LinuxSecurityModulesCheck(),
         UidZeroAccountsCheck(),
         HomeDirectoryPermissionsCheck(),
         SudoersPermissionsCheck(),
