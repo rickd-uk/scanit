@@ -10,7 +10,7 @@ from .checks.browser_extensions import BrowserExtensionPermissionsCheck
 from .checks.browser_processes import BrowserProcessFlagsCheck
 from .checks.filesystem import SudoersDropInPermissionsCheck, SudoersPermissionsCheck
 from .checks.firewall import FirewallServiceCheck
-from .checks.firefox_preferences import FirefoxDangerousPreferencesCheck
+from .checks.firefox_preferences import FirefoxDangerousPreferencesCheck, FirefoxHttpsOnlyCheck
 from .checks.listeners import WildcardListenersCheck
 from .checks.kernel import KernelHardeningCheck
 from .checks.packages import ForeignPackagesCheck, PacmanDatabaseFreshnessCheck, PendingPackageUpdatesCheck
@@ -27,6 +27,7 @@ def builtin_checks() -> list[Check]:
         BrowserExtensionPermissionsCheck(),
         BrowserProcessFlagsCheck(),
         FirefoxDangerousPreferencesCheck(),
+        FirefoxHttpsOnlyCheck(),
         PendingPackageUpdatesCheck(),
         PacmanDatabaseFreshnessCheck(),
         ForeignPackagesCheck(),
