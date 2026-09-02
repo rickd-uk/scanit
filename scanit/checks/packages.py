@@ -90,3 +90,41 @@ class PacmanDatabaseFreshnessCheck:
             Severity.INFO, f"The newest repository database is {age_days:.1f} days old.",
             confidence=Confidence.HIGH,
         )]
+
+
+class ForeignPackagesCheck:
+    check_id = "system.packages.foreign-packages"
+    area = "system"
+    evidence_limit = 50
+
+    def run(self, context: ScanContext) -> list[Finding]:
+        result = context.commands.run(("pacman", "-Qm"), timeout=20)
+        packages = tuple(line.strip() for line in result.stdout.splitlines() if line.strip())
+        if result.returncode == 127:
+            return [Finding(
+                self.check_id, self.area, "Foreign packages could not be inventoried", Status.UNKNOWN,
+                Severity.INFO, "pacman is not available.", confidence=Confidence.LOW,
+            )]
+        if result.returncode in (0, 1) and not packages:
+            return [Finding(
+                self.check_id, self.area, "No foreign packages detected", Status.PASS,
+                Severity.INFO, "Every installed package queried by pacman is present in configured sync databases.",
+                confidence=Confidence.HIGH,
+            )]
+        if result.returncode not in (0, 1):
+            return [Finding(
+                self.check_id, self.area, "Foreign packages could not be inventoried", Status.ERROR,
+                Severity.INFO, result.stdout or f"pacman -Qm exited with status {result.returncode}.",
+                confidence=Confidence.LOW,
+            )]
+
+        evidence = list(packages[: self.evidence_limit])
+        if len(packages) > self.evidence_limit:
+            evidence.append(f"... {len(packages) - self.evidence_limit} additional package(s) omitted")
+        return [Finding(
+            self.check_id, self.area, "Foreign packages require independent trust review", Status.REVIEW,
+            Severity.MEDIUM, f"Found {len(packages)} package(s) absent from configured sync databases.",
+            evidence=tuple(evidence),
+            remediation="Verify each package's source, maintainer, build recipe, update path, and continued necessity.",
+            confidence=Confidence.HIGH,
+        )]

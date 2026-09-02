@@ -13,7 +13,7 @@ from .checks.firewall import FirewallServiceCheck
 from .checks.firefox_preferences import FirefoxDangerousPreferencesCheck
 from .checks.listeners import WildcardListenersCheck
 from .checks.kernel import KernelHardeningCheck
-from .checks.packages import PacmanDatabaseFreshnessCheck, PendingPackageUpdatesCheck
+from .checks.packages import ForeignPackagesCheck, PacmanDatabaseFreshnessCheck, PendingPackageUpdatesCheck
 from .checks.package_trust import PacmanSignaturePolicyCheck
 from .checks.ssh import SshAuthenticationCheck
 from .checks.security_modules import LinuxSecurityModulesCheck
@@ -29,6 +29,7 @@ def builtin_checks() -> list[Check]:
         FirefoxDangerousPreferencesCheck(),
         PendingPackageUpdatesCheck(),
         PacmanDatabaseFreshnessCheck(),
+        ForeignPackagesCheck(),
         PacmanSignaturePolicyCheck(),
         ArchAuditCheck(),
         FirewallServiceCheck(),

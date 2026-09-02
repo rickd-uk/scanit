@@ -4,7 +4,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from scanit.checks.packages import PacmanDatabaseFreshnessCheck, PendingPackageUpdatesCheck
+from scanit.checks.packages import ForeignPackagesCheck, PacmanDatabaseFreshnessCheck, PendingPackageUpdatesCheck
 from scanit.commands import CommandResult
 from scanit.context import ScanContext
 from scanit.models import Status
@@ -67,6 +67,24 @@ class PacmanDatabaseFreshnessTests(unittest.TestCase):
 
     def test_missing_database_is_unknown(self):
         self.assertIs(self.run_check().status, Status.UNKNOWN)
+
+
+class ForeignPackagesTests(unittest.TestCase):
+    def run_check(self, result):
+        commands = FakeCommands(result)
+        context = ScanContext(home=Path("/home/test"), root=Path("/"), commands=commands)
+        return ForeignPackagesCheck().run(context)[0]
+
+    def test_no_foreign_packages_passes(self):
+        self.assertIs(self.run_check(CommandResult(0, "")).status, Status.PASS)
+
+    def test_foreign_packages_require_review(self):
+        finding = self.run_check(CommandResult(0, "custom-browser 1.0-1\nlocal-tool 2.0-3"))
+        self.assertIs(finding.status, Status.REVIEW)
+        self.assertEqual(len(finding.evidence), 2)
+
+    def test_missing_pacman_is_unknown(self):
+        self.assertIs(self.run_check(CommandResult(127, "missing")).status, Status.UNKNOWN)
 
 
 if __name__ == "__main__":
