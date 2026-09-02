@@ -42,6 +42,8 @@ python3 -m scanit
 python3 -m scanit --json
 python3 -m scanit --sarif
 python3 -m scanit --list-checks
+python3 -m scanit --browser-only
+sudo python3 -m scanit --system-only
 python3 -m scanit --area kernel --area network
 python3 -m scanit --check system.boot.secure-boot
 python3 -m scanit --fail-on high
@@ -50,6 +52,10 @@ python3 -m unittest discover -v
 
 ScanIt should normally run as the desktop user. Checks that cannot obtain enough
 evidence report `unknown` or `error`; they do not silently pass.
+
+For evidence requiring elevated access, run a separate `--system-only` scan with
+`sudo`. Do not run browser checks with `sudo`, because that inspects root's home
+instead of the desktop user's profiles.
 
 The process exits with status `1` when a finding meets `--fail-on` (default:
 `low`), `2` for command-line errors, and `0` otherwise. Use `--fail-on none`

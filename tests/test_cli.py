@@ -39,6 +39,22 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertIn("system.identity.uid-zero-accounts", output.getvalue())
 
+    def test_browser_only_lists_no_system_checks(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            result = main(["--browser-only", "--list-checks"])
+        self.assertEqual(result, 0)
+        self.assertIn("browser.profiles.permissions", output.getvalue())
+        self.assertNotIn("system.identity.uid-zero-accounts", output.getvalue())
+
+    def test_system_only_lists_no_browser_checks(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            result = main(["--system-only", "--list-checks"])
+        self.assertEqual(result, 0)
+        self.assertIn("system.identity.uid-zero-accounts", output.getvalue())
+        self.assertNotIn("browser.profiles.permissions", output.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

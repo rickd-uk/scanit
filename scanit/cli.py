@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import os
+import sys
 from collections.abc import Sequence
 
 from . import __version__
@@ -20,6 +22,9 @@ def parser() -> argparse.ArgumentParser:
     output.add_argument("--sarif", action="store_true", help="emit SARIF 2.1.0 for CI systems")
     result.add_argument("--area", action="append", help="run checks in this area (repeatable)")
     result.add_argument("--check", action="append", help="run this stable check ID (repeatable)")
+    scope = result.add_mutually_exclusive_group()
+    scope.add_argument("--browser-only", action="store_true", help="run only browser checks")
+    scope.add_argument("--system-only", action="store_true", help="run all non-browser checks")
     result.add_argument("--list-checks", action="store_true", help="list stable check IDs and exit")
     result.add_argument(
         "--fail-on", choices=("critical", "high", "medium", "low", "none"), default="low",
@@ -45,6 +50,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     checks = builtin_checks()
     available_areas = {check.area for check in checks}
     available_ids = {check.check_id for check in checks}
+    if args.browser_only:
+        checks = [check for check in checks if check.area == "browser"]
+    elif args.system_only:
+        checks = [check for check in checks if check.area != "browser"]
+    elif os.geteuid() == 0 and not args.list_checks:
+        print(
+            "Warning: running as root scans root's browser profile; use --system-only for privileged system evidence.",
+            file=sys.stderr,
+        )
     if args.area:
         wanted = set(args.area)
         unknown = sorted(wanted - available_areas)
@@ -57,7 +71,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if unknown:
             parser().error("unknown check ID(s): " + ", ".join(unknown))
         checks = [check for check in checks if check.check_id in wanted]
-    if (args.area or args.check) and not checks:
+    if (args.area or args.check or args.browser_only or args.system_only) and not checks:
         parser().error("the selected area and check filters do not overlap")
     if args.list_checks:
         for check in checks:
