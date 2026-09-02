@@ -1,7 +1,10 @@
 import unittest
+import os
+import tempfile
+import time
 from pathlib import Path
 
-from scanit.checks.packages import PendingPackageUpdatesCheck
+from scanit.checks.packages import PacmanDatabaseFreshnessCheck, PendingPackageUpdatesCheck
 from scanit.commands import CommandResult
 from scanit.context import ScanContext
 from scanit.models import Status
@@ -41,6 +44,29 @@ class PendingPackageUpdatesTests(unittest.TestCase):
     def test_unexpected_pacman_failure_is_error(self):
         finding = self.run_check(CommandResult(2, "error: failed to synchronize all databases"))
         self.assertIs(finding.status, Status.ERROR)
+
+
+class PacmanDatabaseFreshnessTests(unittest.TestCase):
+    def run_check(self, age_days=None):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            if age_days is not None:
+                database = root / "var/lib/pacman/sync/core.db"
+                database.parent.mkdir(parents=True)
+                database.touch()
+                timestamp = time.time() - age_days * 86_400
+                os.utime(database, (timestamp, timestamp))
+            context = ScanContext(home=Path("/home/test"), root=root, commands=None)
+            return PacmanDatabaseFreshnessCheck().run(context)[0]
+
+    def test_recent_database_passes(self):
+        self.assertIs(self.run_check(1).status, Status.PASS)
+
+    def test_stale_database_fails(self):
+        self.assertIs(self.run_check(10).status, Status.FAIL)
+
+    def test_missing_database_is_unknown(self):
+        self.assertIs(self.run_check().status, Status.UNKNOWN)
 
 
 if __name__ == "__main__":
