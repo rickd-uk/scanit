@@ -16,6 +16,7 @@ from .checks.kernel import KernelHardeningCheck
 from .checks.packages import ForeignPackagesCheck, PacmanDatabaseFreshnessCheck, PendingPackageUpdatesCheck
 from .checks.package_trust import PacmanSignaturePolicyCheck
 from .checks.ssh import SshAuthenticationCheck
+from .checks.ssh_keys import SshPrivateKeyPermissionsCheck
 from .checks.security_modules import LinuxSecurityModulesCheck
 from .checks.storage import RootFilesystemEncryptionCheck
 from .checks.time_sync import NtpSynchronizationCheck
@@ -38,6 +39,7 @@ def builtin_checks() -> list[Check]:
         FirewallServiceCheck(),
         WildcardListenersCheck(),
         SshAuthenticationCheck(),
+        SshPrivateKeyPermissionsCheck(),
         RootFilesystemEncryptionCheck(),
         SecureBootCheck(),
         KernelHardeningCheck(),
