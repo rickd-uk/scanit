@@ -8,6 +8,7 @@ from .checks.filesystem import SudoersDropInPermissionsCheck, SudoersPermissions
 from .checks.firewall import FirewallServiceCheck
 from .checks.packages import PendingPackageUpdatesCheck
 from .checks.package_trust import PacmanSignaturePolicyCheck
+from .checks.ssh import SshAuthenticationCheck
 
 
 def builtin_checks() -> list[Check]:
@@ -16,6 +17,7 @@ def builtin_checks() -> list[Check]:
         PendingPackageUpdatesCheck(),
         PacmanSignaturePolicyCheck(),
         FirewallServiceCheck(),
+        SshAuthenticationCheck(),
         SudoersPermissionsCheck(),
         SudoersDropInPermissionsCheck(),
     ]
