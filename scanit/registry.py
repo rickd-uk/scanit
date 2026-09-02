@@ -20,6 +20,7 @@ from .checks.ssh import SshAuthenticationCheck
 from .checks.ssh_keys import SshAuthorizationPathPermissionsCheck, SshPrivateKeyPermissionsCheck
 from .checks.security_modules import LinuxSecurityModulesCheck
 from .checks.storage import RootFilesystemEncryptionCheck
+from .checks.systemd_services import SystemdDebugShellCheck
 from .checks.time_sync import NtpSynchronizationCheck
 from .checks.vulnerabilities import ArchAuditCheck
 
@@ -53,4 +54,5 @@ def builtin_checks() -> list[Check]:
         SudoersPermissionsCheck(),
         SudoersDropInPermissionsCheck(),
         SystemdUnitPermissionsCheck(),
+        SystemdDebugShellCheck(),
     ]
