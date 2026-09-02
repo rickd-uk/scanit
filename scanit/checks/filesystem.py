@@ -229,3 +229,48 @@ class TemporaryDirectoryPermissionsCheck:
             self.check_id, self.area, "Temporary directories have sticky protection", Status.PASS,
             Severity.INFO, f"Checked {inspected} standard temporary directory path(s).", confidence=Confidence.HIGH,
         )]
+
+
+class SensitiveSystemFilePermissionsCheck:
+    check_id = "system.filesystem.sensitive-file-permissions"
+    area = "system"
+    targets = (
+        ("system.filesystem.passwd-permissions", "etc/passwd", "passwd"),
+        ("system.filesystem.group-permissions", "etc/group", "group"),
+        ("system.filesystem.shadow-permissions", "etc/shadow", "shadow"),
+        ("system.filesystem.gshadow-permissions", "etc/gshadow", "gshadow"),
+        ("system.filesystem.sshd-config-permissions", "etc/ssh/sshd_config", "SSH daemon configuration"),
+    )
+
+    def run(self, context: ScanContext) -> list[Finding]:
+        findings: list[Finding] = []
+        for check_id, relative, label in self.targets:
+            path = context.root / relative
+            try:
+                info = path.lstat()
+            except FileNotFoundError:
+                findings.append(Finding(
+                    check_id, self.area, f"{label} file is not present", Status.NOT_APPLICABLE,
+                    Severity.INFO, f"{path} does not exist.", confidence=Confidence.MEDIUM,
+                ))
+                continue
+            except OSError as error:
+                findings.append(Finding(
+                    check_id, self.area, f"{label} permissions could not be inspected", Status.UNKNOWN,
+                    Severity.INFO, str(error), confidence=Confidence.LOW,
+                ))
+                continue
+            mode = stat.S_IMODE(info.st_mode)
+            if not stat.S_ISREG(info.st_mode) or unsafe_privileged_metadata(info):
+                findings.append(Finding(
+                    check_id, self.area, f"{label} permissions are unsafe", Status.FAIL,
+                    Severity.CRITICAL, f"{path} owner uid={info.st_uid}, mode={mode:04o}",
+                    remediation="Restore root ownership and remove group/other write permission from this system file.",
+                    confidence=Confidence.HIGH,
+                ))
+                continue
+            findings.append(Finding(
+                check_id, self.area, f"{label} permissions are protected", Status.PASS,
+                Severity.INFO, f"{path} owner uid={info.st_uid}, mode={mode:04o}.", confidence=Confidence.HIGH,
+            ))
+        return findings
