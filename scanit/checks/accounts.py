@@ -111,3 +111,52 @@ class HomeDirectoryPermissionsCheck:
             self.check_id, self.area, "Home directory ownership and write permissions are safe",
             Status.PASS, Severity.INFO, f"{path} owner uid={info.st_uid}, mode={mode:04o}.",
         )]
+
+
+class EmptyPasswordsCheck:
+    check_id = "system.identity.empty-passwords"
+    area = "identity"
+
+    def run(self, context: ScanContext) -> list[Finding]:
+        path = context.root / "etc/shadow"
+        try:
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except (FileNotFoundError, PermissionError) as error:
+            return [Finding(
+                self.check_id, self.area, "Empty-password accounts could not be inspected",
+                Status.UNKNOWN, Severity.INFO, str(error), confidence=Confidence.LOW,
+            )]
+        except OSError as error:
+            return [Finding(
+                self.check_id, self.area, "Empty-password accounts could not be inspected",
+                Status.ERROR, Severity.INFO, str(error), confidence=Confidence.LOW,
+            )]
+
+        empty: list[str] = []
+        malformed = 0
+        for line in lines:
+            if not line:
+                continue
+            fields = line.split(":")
+            if len(fields) < 2 or not fields[0]:
+                malformed += 1
+                continue
+            if fields[1] == "":
+                empty.append(fields[0])
+        if empty:
+            return [Finding(
+                self.check_id, self.area, "Accounts with empty password fields exist", Status.FAIL,
+                Severity.CRITICAL, f"Found {len(empty)} account(s) with an empty shadow password field.",
+                evidence=tuple(f"account={account}" for account in sorted(empty)),
+                remediation="Lock each unintended account or assign a strong password through the normal account-management workflow.",
+                confidence=Confidence.HIGH,
+            )]
+        if malformed:
+            return [Finding(
+                self.check_id, self.area, "Empty-password audit was incomplete", Status.UNKNOWN,
+                Severity.INFO, f"Found {malformed} malformed shadow line(s).", confidence=Confidence.LOW,
+            )]
+        return [Finding(
+            self.check_id, self.area, "No empty shadow password fields detected", Status.PASS,
+            Severity.INFO, "All parsed accounts have a password hash or lock marker.", confidence=Confidence.HIGH,
+        )]
