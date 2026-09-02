@@ -31,9 +31,9 @@ class SshAuthenticationTests(unittest.TestCase):
     def test_safe_effective_authentication_passes(self):
         findings, calls = self.run_check([
             CommandResult(0, "active"),
-            CommandResult(0, "permitrootlogin no\npasswordauthentication no"),
+            CommandResult(0, "permitrootlogin no\npasswordauthentication no\nx11forwarding no\nallowtcpforwarding no\nclientaliveinterval 300"),
         ])
-        self.assertEqual([finding.status for finding in findings], [Status.PASS, Status.PASS])
+        self.assertEqual([finding.status for finding in findings], [Status.PASS] * 5)
         self.assertEqual(calls[-1], (("sshd", "-T"), 10))
 
     def test_root_and_password_authentication_fail(self):
@@ -41,7 +41,7 @@ class SshAuthenticationTests(unittest.TestCase):
             CommandResult(0, "active"),
             CommandResult(0, "permitrootlogin yes\npasswordauthentication yes"),
         ])
-        self.assertEqual([finding.status for finding in findings], [Status.FAIL, Status.FAIL])
+        self.assertEqual([finding.status for finding in findings[:2]], [Status.FAIL, Status.FAIL])
         self.assertIs(findings[0].severity, Severity.HIGH)
 
     def test_key_only_root_login_still_fails_at_medium(self):
@@ -66,6 +66,13 @@ class SshAuthenticationTests(unittest.TestCase):
             CommandResult(1, "sshd: no hostkeys available"),
         ])
         self.assertIs(findings[0].status, Status.ERROR)
+
+    def test_forwarding_and_no_idle_timeout_require_review(self):
+        findings, _ = self.run_check([
+            CommandResult(0, "active"),
+            CommandResult(0, "permitrootlogin no\npasswordauthentication no\nx11forwarding yes\nallowtcpforwarding yes\nclientaliveinterval 0"),
+        ])
+        self.assertEqual([finding.status for finding in findings[2:]], [Status.REVIEW] * 3)
 
 
 if __name__ == "__main__":

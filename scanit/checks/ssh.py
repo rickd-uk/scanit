@@ -35,7 +35,10 @@ class SshAuthenticationCheck:
             )]
 
         values = self._parse_effective_config(effective.stdout)
-        return [self._root_login(values), self._password_authentication(values)]
+        return [
+            self._root_login(values), self._password_authentication(values),
+            self._x11_forwarding(values), self._tcp_forwarding(values), self._idle_timeout(values),
+        ]
 
     @staticmethod
     def _parse_effective_config(output: str) -> dict[str, str]:
@@ -88,3 +91,44 @@ class SshAuthenticationCheck:
             remediation="Use SSH keys and set PasswordAuthentication no when operationally feasible.",
             confidence=Confidence.MEDIUM,
         )
+
+    @staticmethod
+    def _review_boolean(values: dict[str, str], directive: str, title: str, check_id: str, remediation: str) -> Finding:
+        value = values.get(directive)
+        if value is None:
+            return Finding(check_id, "network", f"{title} policy could not be determined", Status.UNKNOWN,
+                           Severity.INFO, f"sshd -T did not report {directive}.", confidence=Confidence.LOW)
+        if value == "no":
+            return Finding(check_id, "network", f"{title} is disabled", Status.PASS,
+                           Severity.INFO, f"Effective {directive}: no", confidence=Confidence.MEDIUM)
+        return Finding(check_id, "network", f"{title} is enabled", Status.REVIEW,
+                       Severity.LOW, f"Effective {directive}: {value}", remediation=remediation,
+                       confidence=Confidence.MEDIUM)
+
+    @classmethod
+    def _x11_forwarding(cls, values: dict[str, str]) -> Finding:
+        return cls._review_boolean(values, "x11forwarding", "SSH X11 forwarding", "system.ssh.x11-forwarding",
+                                   "Disable X11Forwarding unless remote graphical application forwarding is required.")
+
+    @classmethod
+    def _tcp_forwarding(cls, values: dict[str, str]) -> Finding:
+        return cls._review_boolean(values, "allowtcpforwarding", "SSH TCP forwarding", "system.ssh.tcp-forwarding",
+                                   "Restrict AllowTcpForwarding unless tunnels are required by the SSH service's intended role.")
+
+    @staticmethod
+    def _idle_timeout(values: dict[str, str]) -> Finding:
+        value = values.get("clientaliveinterval")
+        check_id = "system.ssh.idle-timeout"
+        if value is None:
+            return Finding(check_id, "network", "SSH idle-session policy could not be determined", Status.UNKNOWN,
+                           Severity.INFO, "sshd -T did not report ClientAliveInterval.", confidence=Confidence.LOW)
+        try:
+            seconds = int(value)
+        except ValueError:
+            return Finding(check_id, "network", "SSH idle-session policy has an invalid value", Status.ERROR,
+                           Severity.INFO, f"Effective ClientAliveInterval: {value}", confidence=Confidence.LOW)
+        if seconds > 0:
+            return Finding(check_id, "network", "SSH idle-session timeout is configured", Status.PASS,
+                           Severity.INFO, f"Effective ClientAliveInterval: {seconds} seconds.", confidence=Confidence.MEDIUM)
+        return Finding(check_id, "network", "SSH sessions have no server idle timeout", Status.REVIEW,
+                       Severity.LOW, "Effective ClientAliveInterval: 0", remediation="Set ClientAliveInterval and ClientAliveCountMax for services needing automatic idle-session expiry.", confidence=Confidence.MEDIUM)
