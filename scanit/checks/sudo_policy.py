@@ -254,6 +254,13 @@ class SudoPolicySyntaxCheck:
                 self.check_id, self.area, "Sudo policy validator could not execute", Status.UNKNOWN,
                 Severity.INFO, result.stdout or "visudo could not be executed.", confidence=Confidence.LOW,
             )]
+        failure = result.stdout.casefold()
+        if result.returncode == 124 or "permission denied" in failure or "operation not permitted" in failure:
+            return [Finding(
+                self.check_id, self.area, "Sudo policy syntax could not be validated", Status.UNKNOWN,
+                Severity.INFO, result.stdout or "visudo could not read the sudo policy.",
+                confidence=Confidence.LOW,
+            )]
         return [Finding(
             self.check_id, self.area, "Sudo policy has validation errors", Status.FAIL,
             Severity.HIGH, result.stdout or f"visudo exited with status {result.returncode}.",

@@ -25,5 +25,12 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Versioned JSON, SARIF, focused scans, failure thresholds, and baseline comparison.
 - Unit tests covering safe, unsafe, unavailable, malformed, and partial-evidence states.
 
+### Fixed
+
+- Permission-denied and timeout results from `visudo` no longer appear as invalid
+  sudo policy.
+- `arch-audit` network and database errors no longer appear as vulnerable-package
+  entries.
+
 [Unreleased]: https://github.com/rickd-uk/scanit/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/rickd-uk/scanit/releases/tag/v0.2.0

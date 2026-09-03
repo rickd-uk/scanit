@@ -26,11 +26,12 @@ class ArchAuditCheck:
                 Severity.INFO, "arch-audit returned no affected installed packages.",
                 confidence=Confidence.MEDIUM,
             )]
-        if result.returncode in (0, 1) and lines:
+        affected = tuple(line for line in lines if " is affected by " in line)
+        if result.returncode in (0, 1) and affected and len(affected) == len(lines):
             return [Finding(
                 self.check_id, self.area, "Known vulnerable packages were reported", Status.FAIL,
-                Severity.HIGH, f"arch-audit reported {len(lines)} affected package entries.",
-                evidence=lines,
+                Severity.HIGH, f"arch-audit reported {len(affected)} affected package entries.",
+                evidence=affected,
                 remediation="Review the advisories and update or mitigate the affected packages promptly.",
                 confidence=Confidence.MEDIUM,
             )]

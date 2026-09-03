@@ -148,6 +148,14 @@ class SudoPolicySyntaxTests(unittest.TestCase):
         finding, _ = self.run_check(CommandResult(127, "missing"))
         self.assertIs(finding.status, Status.UNKNOWN)
 
+    def test_permission_denial_is_unknown(self):
+        finding, _ = self.run_check(CommandResult(1, "visudo: unable to open: Permission denied"))
+        self.assertIs(finding.status, Status.UNKNOWN)
+
+    def test_timeout_is_unknown(self):
+        finding, _ = self.run_check(CommandResult(124, "command timed out"))
+        self.assertIs(finding.status, Status.UNKNOWN)
+
     def test_missing_policy_is_not_applicable(self):
         finding, commands = self.run_check(CommandResult(0, "unused"), policy=False)
         self.assertIs(finding.status, Status.NOT_APPLICABLE)

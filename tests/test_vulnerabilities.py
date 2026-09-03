@@ -40,6 +40,18 @@ class ArchAuditTests(unittest.TestCase):
     def test_unexpected_failure_is_error(self):
         self.assertIs(self.run_check(CommandResult(2, "database unavailable")).status, Status.ERROR)
 
+    def test_network_failure_with_vulnerability_exit_code_is_error(self):
+        finding = self.run_check(CommandResult(
+            1, "Error: failed to get AVG json\nBecause: failed to fetch AVGs from URL",
+        ))
+        self.assertIs(finding.status, Status.ERROR)
+
+    def test_mixed_results_and_errors_are_not_reported_as_complete(self):
+        finding = self.run_check(CommandResult(
+            1, "openssl is affected by arbitrary code execution\nError: database incomplete",
+        ))
+        self.assertIs(finding.status, Status.ERROR)
+
 
 if __name__ == "__main__":
     unittest.main()
