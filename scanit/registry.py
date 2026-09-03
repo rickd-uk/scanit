@@ -19,7 +19,7 @@ from .checks.package_trust import PacmanSignaturePolicyCheck
 from .checks.ssh import SshAuthenticationCheck
 from .checks.ssh_keys import SshAuthorizationPathPermissionsCheck, SshHostKeyPermissionsCheck, SshPrivateKeyPermissionsCheck
 from .checks.security_modules import LinuxSecurityModulesCheck
-from .checks.storage import RootFilesystemEncryptionCheck
+from .checks.storage import RootFilesystemEncryptionCheck, SharedFilesystemMountOptionsCheck
 from .checks.systemd_services import SystemdDebugShellCheck
 from .checks.sudo_policy import SudoBroadCommandRulesCheck, SudoPasswordlessRulesCheck, SudoPolicySyntaxCheck, SudoSecurePathCheck
 from .checks.time_sync import NtpSynchronizationCheck
@@ -48,6 +48,7 @@ def builtin_checks() -> list[Check]:
         SshPrivateKeyPermissionsCheck(),
         SshAuthorizationPathPermissionsCheck(),
         RootFilesystemEncryptionCheck(),
+        SharedFilesystemMountOptionsCheck(),
         SecureBootCheck(),
         KernelHardeningCheck(),
         LinuxSecurityModulesCheck(),

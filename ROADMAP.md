@@ -10,10 +10,13 @@ real systems expose false positives, incomplete evidence, or unsafe assumptions.
 - Stabilize documented JSON and SARIF behavior.
 - Complete an installed-package smoke test and publish release notes.
 
+## Completed checks
+
+- Audit security-relevant options on shared and removable filesystem mounts,
+  including active NTFS implementation reporting.
+
 ## Next checks
 
-- Audit security-relevant options on shared and removable filesystem mounts.
-- Report the active NTFS implementation without treating NTFS itself as unsafe.
 - Audit privileged systemd execution targets and their parent-directory permissions.
 - Extend coverage to privileged scheduled tasks, PAM policy, persistent logging,
   core dumps, and boot-chain file integrity.

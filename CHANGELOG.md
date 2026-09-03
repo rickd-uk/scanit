@@ -10,6 +10,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Shared NTFS, exFAT, and FAT mount-option auditing with active NTFS implementation
+  reporting.
 - Distribution-build and installed-command validation in CI.
 - CI coverage for every supported Python release from 3.11 through 3.14.
 - A test that keeps package metadata and the runtime version synchronized.

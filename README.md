@@ -17,8 +17,8 @@ stable machine-readable findings, safe failure, and comprehensive tests.
   `arch-audit`.
 - Firewall service activity, wildcard listeners, IP-forwarding role review, and
   effective SSH root/password authentication settings.
-- Root-volume encryption, Secure Boot, kernel hardening parameters, active Linux
-  security modules, and kernel lockdown.
+- Root-volume encryption, shared NTFS/exFAT/FAT mount options, Secure Boot,
+  kernel hardening parameters, active Linux security modules, and kernel lockdown.
 - UID 0 accounts, home-directory write protection, SSH key and authorization-path
   permissions, and NTP synchronization.
 - Sudoers ownership, drop-in permissions, syntax validation, passwordless and
