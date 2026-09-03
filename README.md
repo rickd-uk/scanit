@@ -94,6 +94,9 @@ all `unknown` and `error` results.
 
 Report security issues using the process in [SECURITY.md](SECURITY.md).
 
+See [CHANGELOG.md](CHANGELOG.md) for release history and [ROADMAP.md](ROADMAP.md)
+for planned development.
+
 ## Development
 
 ```bash

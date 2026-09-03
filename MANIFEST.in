@@ -1,0 +1,3 @@
+include CHANGELOG.md
+include ROADMAP.md
+include SECURITY.md
