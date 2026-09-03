@@ -6,6 +6,11 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Effective execution-path and parent-directory auditing for active and enabled
+  systemd system services.
+
 ## [0.2.0] - 2026-09-03
 
 ### Added

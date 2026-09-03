@@ -23,6 +23,8 @@ stable machine-readable findings, safe failure, and comprehensive tests.
   permissions, and NTP synchronization.
 - Sudoers ownership, drop-in permissions, syntax validation, passwordless and
   broad command-rule review, and `secure_path` protection.
+- Active and enabled systemd service execution paths and their parent-directory
+  ownership and write protection.
 - Scan-to-scan baseline comparison and SARIF output for CI integrations.
 
 An extension permission finding means review is warranted; it does not mean the

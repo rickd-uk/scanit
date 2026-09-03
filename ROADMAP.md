@@ -14,10 +14,11 @@ real systems expose false positives, incomplete evidence, or unsafe assumptions.
 
 - Audit security-relevant options on shared and removable filesystem mounts,
   including active NTFS implementation reporting.
+- Audit effective execution targets and parent-directory permissions for active
+  and enabled systemd system services.
 
 ## Next checks
 
-- Audit privileged systemd execution targets and their parent-directory permissions.
 - Extend coverage to privileged scheduled tasks, PAM policy, persistent logging,
   core dumps, and boot-chain file integrity.
 
