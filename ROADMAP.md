@@ -3,12 +3,12 @@
 ScanIt is being developed in small, testable slices. Priorities may change as
 real systems expose false positives, incomplete evidence, or unsafe assumptions.
 
-## 0.2 release readiness
+## 0.2 release
 
-- Validate wheels and source distributions in CI.
-- Test every supported Python release.
-- Stabilize documented JSON and SARIF behavior.
-- Complete an installed-package smoke test and publish release notes.
+- Validated wheels and source distributions in CI.
+- Tested every supported Python release.
+- Stabilized documented JSON and SARIF behavior.
+- Completed installed-package smoke testing and release notes.
 
 ## Completed checks
 
