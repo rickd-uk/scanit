@@ -31,6 +31,7 @@ The project follows [Semantic Versioning](https://semver.org/).
   sudo policy.
 - `arch-audit` network and database errors no longer appear as vulnerable-package
   entries.
+- CI actions now use Node.js 24-compatible releases pinned by commit digest.
 
 [Unreleased]: https://github.com/rickd-uk/scanit/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/rickd-uk/scanit/releases/tag/v0.2.0
