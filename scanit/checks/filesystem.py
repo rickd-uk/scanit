@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import stat
 from os import stat_result
+from pathlib import Path
 
 from ..context import ScanContext
 from ..models import Confidence, Finding, Severity, Status
@@ -12,6 +13,41 @@ from ..models import Confidence, Finding, Severity, Status
 def unsafe_privileged_metadata(info: stat_result) -> bool:
     """Return whether a root-owned configuration can be changed by another user."""
     return info.st_uid != 0 or bool(stat.S_IMODE(info.st_mode) & 0o022)
+
+
+def _inspect_etc_tree(
+    directory: Path, maximum_paths: int,
+) -> tuple[list[tuple[Path, stat_result]], list[str], int]:
+    metadata: list[tuple[Path, stat_result]] = []
+    errors: list[str] = []
+    inspected = 0
+    try:
+        for path in directory.rglob("*"):
+            if inspected >= maximum_paths:
+                errors.append(f"{directory}: traversal limit of {maximum_paths} paths reached")
+                break
+            try:
+                info = path.lstat()
+            except OSError as error:
+                errors.append(f"{path}: {type(error).__name__}")
+                continue
+            if stat.S_ISLNK(info.st_mode):
+                continue
+            if not (stat.S_ISREG(info.st_mode) or stat.S_ISDIR(info.st_mode)):
+                continue
+            inspected += 1
+            metadata.append((path, info))
+    except OSError as error:
+        errors.append(f"{directory}: {type(error).__name__}")
+    return metadata, errors, inspected
+
+
+def _bounded_evidence(items: list[str], errors: list[str], limit: int) -> tuple[str, ...]:
+    evidence = items[:limit]
+    if len(items) > limit:
+        evidence.append(f"... {len(items) - limit} additional path(s) omitted")
+    evidence.extend(errors[:max(0, limit - len(evidence))])
+    return tuple(evidence)
 
 
 class SudoersPermissionsCheck:
@@ -328,6 +364,7 @@ class EtcWritablePathsCheck:
     check_id = "system.filesystem.etc-writable-paths"
     area = "system"
     maximum_paths = 5000
+    evidence_limit = 50
 
     def run(self, context: ScanContext) -> list[Finding]:
         directory = context.root / "etc"
@@ -336,39 +373,18 @@ class EtcWritablePathsCheck:
                 self.check_id, self.area, "The /etc tree is not present", Status.NOT_APPLICABLE,
                 Severity.INFO, f"{directory} does not exist.", confidence=Confidence.MEDIUM,
             )]
-        unsafe: list[str] = []
-        errors: list[str] = []
-        inspected = 0
-        try:
-            iterator = directory.rglob("*")
-            for path in iterator:
-                if inspected >= self.maximum_paths:
-                    errors.append(f"{directory}: traversal limit of {self.maximum_paths} paths reached")
-                    break
-                try:
-                    info = path.lstat()
-                except OSError as error:
-                    errors.append(f"{path}: {type(error).__name__}")
-                    continue
-                if stat.S_ISLNK(info.st_mode):
-                    continue
-                if not (stat.S_ISREG(info.st_mode) or stat.S_ISDIR(info.st_mode)):
-                    continue
-                inspected += 1
-                if unsafe_privileged_metadata(info):
-                    mode = stat.S_IMODE(info.st_mode)
-                    unsafe.append(f"{path} owner uid={info.st_uid}, mode={mode:04o}")
-        except OSError as error:
-            errors.append(f"{directory}: {type(error).__name__}")
+        metadata, errors, inspected = _inspect_etc_tree(directory, self.maximum_paths)
+        unsafe = [
+            f"{path} owner uid={info.st_uid}, mode={stat.S_IMODE(info.st_mode):04o}"
+            for path, info in metadata if stat.S_IMODE(info.st_mode) & 0o022
+        ]
 
         if unsafe:
-            evidence = unsafe[: self.maximum_paths]
-            evidence.extend(errors[: max(0, self.maximum_paths - len(evidence))])
             return [Finding(
                 self.check_id, self.area, "The /etc tree contains writable privileged paths", Status.FAIL,
-                Severity.CRITICAL, f"Found {len(unsafe)} /etc path(s) outside the root-only write boundary.",
-                evidence=tuple(evidence),
-                remediation="Restore root ownership and remove group/other write permissions from affected /etc paths.",
+                Severity.HIGH, f"Found {len(unsafe)} /etc path(s) writable by group or other users.",
+                evidence=_bounded_evidence(unsafe, errors, self.evidence_limit),
+                remediation="Remove group/other write permissions unless a narrowly reviewed policy requires them.",
                 confidence=Confidence.MEDIUM if errors else Confidence.HIGH,
             )]
         if errors:
@@ -378,6 +394,54 @@ class EtcWritablePathsCheck:
                 evidence=tuple(errors), confidence=Confidence.LOW,
             )]
         return [Finding(
-            self.check_id, self.area, "The /etc tree has root-only write protection", Status.PASS,
-            Severity.INFO, f"Checked {inspected} /etc file and directory path(s).", confidence=Confidence.HIGH,
+            self.check_id, self.area, "The /etc tree has no group- or world-writable paths", Status.PASS,
+            Severity.INFO, f"Checked {inspected} /etc file and directory path(s).",
+            confidence=Confidence.HIGH,
+        )]
+
+
+class EtcOwnershipReviewCheck:
+    check_id = "system.filesystem.etc-ownership-review"
+    area = "system"
+    maximum_paths = 5000
+    evidence_limit = 50
+
+    def run(self, context: ScanContext) -> list[Finding]:
+        directory = context.root / "etc"
+        if not directory.is_dir():
+            return [Finding(
+                self.check_id, self.area, "The /etc tree is not present", Status.NOT_APPLICABLE,
+                Severity.INFO, f"{directory} does not exist.", confidence=Confidence.MEDIUM,
+            )]
+        metadata, errors, inspected = _inspect_etc_tree(directory, self.maximum_paths)
+        review = [
+            f"{path} owner uid={info.st_uid}, mode={stat.S_IMODE(info.st_mode):04o}"
+            for path, info in metadata
+            if info.st_uid != 0 and not (stat.S_IMODE(info.st_mode) & 0o022)
+        ]
+
+        if review:
+            return [Finding(
+                self.check_id, self.area, "Non-root-owned /etc paths require context review",
+                Status.REVIEW, Severity.MEDIUM,
+                f"Found {len(review)} non-root-owned /etc path(s) without group/other write access; "
+                "service ownership can be intentional.",
+                evidence=_bounded_evidence(review, errors, self.evidence_limit),
+                remediation=(
+                    "Confirm each owner is expected from trusted package or service policy and that no "
+                    "more-privileged process consumes attacker-controlled content from the path."
+                ),
+                confidence=Confidence.MEDIUM if errors else Confidence.HIGH,
+            )]
+        if errors:
+            return [Finding(
+                self.check_id, self.area, "The /etc tree ownership could not be fully inspected",
+                Status.UNKNOWN, Severity.INFO,
+                f"Inspected {inspected} /etc path(s); {len(errors)} traversal issue(s) occurred.",
+                evidence=tuple(errors[:self.evidence_limit]), confidence=Confidence.LOW,
+            )]
+        return [Finding(
+            self.check_id, self.area, "No non-root-owned /etc paths require review", Status.PASS,
+            Severity.INFO, f"Checked {inspected} /etc file and directory path(s).",
+            confidence=Confidence.HIGH,
         )]

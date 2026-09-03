@@ -51,6 +51,7 @@ python3 -m scanit --browser-only
 sudo python3 -m scanit --system-only
 python3 -m scanit --area kernel --area network
 python3 -m scanit --check system.boot.secure-boot
+python3 -m scanit --status fail
 python3 -m scanit --fail-on high
 python3 -m scanit --json > baseline.json
 python3 -m scanit --baseline baseline.json
@@ -67,6 +68,9 @@ instead of the desktop user's profiles.
 The process exits with status `1` when a finding meets `--fail-on` (default:
 `low`), `2` for command-line errors, and `0` otherwise. Use `--fail-on none`
 when collecting results without a policy exit code.
+
+`--status` filters displayed findings and can be repeated. It does not weaken the
+`--fail-on` exit policy; add `--fail-on none` when display-only output must exit 0.
 
 ## Result states
 

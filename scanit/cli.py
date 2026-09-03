@@ -25,6 +25,10 @@ def parser() -> argparse.ArgumentParser:
     output.add_argument("--sarif", action="store_true", help="emit SARIF 2.1.0 for CI systems")
     result.add_argument("--area", action="append", help="run checks in this area (repeatable)")
     result.add_argument("--check", action="append", help="run this stable check ID (repeatable)")
+    result.add_argument(
+        "--status", action="append", choices=tuple(status.value for status in Status),
+        help="show only this result status (repeatable; does not change the failure exit policy)",
+    )
     scope = result.add_mutually_exclusive_group()
     scope.add_argument("--browser-only", action="store_true", help="run only browser checks")
     scope.add_argument("--system-only", action="store_true", help="run all non-browser checks")
@@ -93,11 +97,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             delta = compare_with_baseline(report, baseline)
         except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
             parser().error(f"could not read baseline: {error}")
+    displayed = report
+    if args.status:
+        wanted_statuses = {Status(value) for value in args.status}
+        displayed = ScanReport(
+            tool_version=report.tool_version,
+            findings=[finding for finding in report.findings if finding.status in wanted_statuses],
+        )
     if args.json:
-        rendered = render_json(report, delta)
+        rendered = render_json(displayed, delta)
     elif args.sarif:
-        rendered = render_sarif(report)
+        rendered = render_sarif(displayed)
     else:
-        rendered = render_text(report, delta)
+        rendered = render_text(displayed, delta)
     print(rendered)
     return 1 if report_fails_at(report, args.fail_on) else 0
