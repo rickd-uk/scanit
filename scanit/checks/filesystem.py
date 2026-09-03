@@ -274,3 +274,51 @@ class SensitiveSystemFilePermissionsCheck:
                 Severity.INFO, f"{path} owner uid={info.st_uid}, mode={mode:04o}.", confidence=Confidence.HIGH,
             ))
         return findings
+
+
+class UserStartupFilePermissionsCheck:
+    check_id = "system.identity.startup-file-permissions"
+    area = "identity"
+    relative_paths = (".bashrc", ".bash_profile", ".profile", ".config/autostart")
+
+    def run(self, context: ScanContext) -> list[Finding]:
+        unsafe: list[str] = []
+        errors: list[str] = []
+        inspected = 0
+        for relative in self.relative_paths:
+            path = context.home / relative
+            try:
+                info = path.lstat()
+            except FileNotFoundError:
+                continue
+            except OSError as error:
+                errors.append(f"{path}: {type(error).__name__}")
+                continue
+            inspected += 1
+            mode = stat.S_IMODE(info.st_mode)
+            if stat.S_ISLNK(info.st_mode) or bool(mode & 0o022):
+                unsafe.append(f"{path} owner uid={info.st_uid}, mode={mode:04o}")
+
+        if unsafe:
+            return [Finding(
+                self.check_id, self.area, "User startup paths permit unsafe modification", Status.FAIL,
+                Severity.HIGH, f"Found {len(unsafe)} startup path(s) writable by group/other users or linked unexpectedly.",
+                evidence=tuple(unsafe + errors),
+                remediation="Remove group/other write permission and unexpected symlinks from shell startup and autostart paths.",
+                confidence=Confidence.MEDIUM if errors else Confidence.HIGH,
+            )]
+        if errors:
+            return [Finding(
+                self.check_id, self.area, "User startup paths could not be fully inspected", Status.UNKNOWN,
+                Severity.INFO, f"Inspected {inspected} startup path(s); {len(errors)} path(s) had errors.",
+                evidence=tuple(errors), confidence=Confidence.LOW,
+            )]
+        if not inspected:
+            return [Finding(
+                self.check_id, self.area, "No supported user startup paths detected", Status.NOT_APPLICABLE,
+                Severity.INFO, "No supported shell startup files or desktop autostart directory was found.", confidence=Confidence.MEDIUM,
+            )]
+        return [Finding(
+            self.check_id, self.area, "User startup paths are protected", Status.PASS,
+            Severity.INFO, f"Checked {inspected} user startup path(s).", confidence=Confidence.HIGH,
+        )]
