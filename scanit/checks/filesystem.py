@@ -322,3 +322,62 @@ class UserStartupFilePermissionsCheck:
             self.check_id, self.area, "User startup paths are protected", Status.PASS,
             Severity.INFO, f"Checked {inspected} user startup path(s).", confidence=Confidence.HIGH,
         )]
+
+
+class EtcWritablePathsCheck:
+    check_id = "system.filesystem.etc-writable-paths"
+    area = "system"
+    maximum_paths = 5000
+
+    def run(self, context: ScanContext) -> list[Finding]:
+        directory = context.root / "etc"
+        if not directory.is_dir():
+            return [Finding(
+                self.check_id, self.area, "The /etc tree is not present", Status.NOT_APPLICABLE,
+                Severity.INFO, f"{directory} does not exist.", confidence=Confidence.MEDIUM,
+            )]
+        unsafe: list[str] = []
+        errors: list[str] = []
+        inspected = 0
+        try:
+            iterator = directory.rglob("*")
+            for path in iterator:
+                if inspected >= self.maximum_paths:
+                    errors.append(f"{directory}: traversal limit of {self.maximum_paths} paths reached")
+                    break
+                try:
+                    info = path.lstat()
+                except OSError as error:
+                    errors.append(f"{path}: {type(error).__name__}")
+                    continue
+                if stat.S_ISLNK(info.st_mode):
+                    continue
+                if not (stat.S_ISREG(info.st_mode) or stat.S_ISDIR(info.st_mode)):
+                    continue
+                inspected += 1
+                if unsafe_privileged_metadata(info):
+                    mode = stat.S_IMODE(info.st_mode)
+                    unsafe.append(f"{path} owner uid={info.st_uid}, mode={mode:04o}")
+        except OSError as error:
+            errors.append(f"{directory}: {type(error).__name__}")
+
+        if unsafe:
+            evidence = unsafe[: self.maximum_paths]
+            evidence.extend(errors[: max(0, self.maximum_paths - len(evidence))])
+            return [Finding(
+                self.check_id, self.area, "The /etc tree contains writable privileged paths", Status.FAIL,
+                Severity.CRITICAL, f"Found {len(unsafe)} /etc path(s) outside the root-only write boundary.",
+                evidence=tuple(evidence),
+                remediation="Restore root ownership and remove group/other write permissions from affected /etc paths.",
+                confidence=Confidence.MEDIUM if errors else Confidence.HIGH,
+            )]
+        if errors:
+            return [Finding(
+                self.check_id, self.area, "The /etc tree could not be fully inspected", Status.UNKNOWN,
+                Severity.INFO, f"Inspected {inspected} /etc path(s); {len(errors)} traversal issue(s) occurred.",
+                evidence=tuple(errors), confidence=Confidence.LOW,
+            )]
+        return [Finding(
+            self.check_id, self.area, "The /etc tree has root-only write protection", Status.PASS,
+            Severity.INFO, f"Checked {inspected} /etc file and directory path(s).", confidence=Confidence.HIGH,
+        )]
