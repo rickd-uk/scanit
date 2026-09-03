@@ -1,11 +1,53 @@
 __pycache__/
 *.py[cod]
+.venv/
+venv/
 .coverage
+.coverage.*
+htmlcov/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 build/
 dist/
 *.egg-info/
-.git-local/
 
+# Local agent/session state and host-specific project notes
+.agents/
+.codex/
+PROGRESS.md
+
+# Environment files and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+credentials*.json
+secrets*.json
+token*.json
+
+# Security scan output and local data
+scan-results/
+reports/
+baseline*.json
+scanit-report*.json
+*.sarif
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# Editor and operating-system state
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
